@@ -258,6 +258,22 @@ async function ageRating() {
 	console.log('age rating set: no objectionable content anywhere');
 }
 
+const PRIVACY_POLICY_URL = 'https://github.com/bersling/red-wedge-timer/blob/main/PRIVACY.md';
+
+async function privacyUrl() {
+	const info = await appInfo();
+	const locs = await call('GET', `/appInfos/${info.id}/appInfoLocalizations?limit=10`);
+	const l = locs.data.find((x) => x.attributes.locale === LOCALE) ?? locs.data[0];
+	await call('PATCH', `/appInfoLocalizations/${l.id}`, {
+		data: {
+			type: 'appInfoLocalizations',
+			id: l.id,
+			attributes: { privacyPolicyUrl: PRIVACY_POLICY_URL },
+		},
+	});
+	console.log('privacy policy URL set:', PRIVACY_POLICY_URL);
+}
+
 async function categories() {
 	const info = await appInfo();
 	await call('PATCH', `/appInfos/${info.id}`, {
@@ -271,6 +287,40 @@ async function categories() {
 		},
 	});
 	console.log('categories set: Utilities, then Education');
+}
+
+const REVIEW_CONTACT = {
+	contactFirstName: 'Daniel',
+	contactLastName: 'Niederberger',
+	contactPhone: '+41 79 198 02 40',
+	contactEmail: 'daniel@taskbase.com',
+	notes: `No account, no sign-in and no network access: the app makes no requests at all.
+
+To try it: drag the dial or tap a preset to choose a length, press Start, and the
+red disk shrinks as the time runs out. For a quick check of the alarm, set the
+dial to 1 minute. The control in the top right chooses how long it beeps and
+which sound it uses.`,
+	demoAccountRequired: false,
+};
+
+async function reviewDetail() {
+	const v = await version();
+	const existing = await call('GET', `/appStoreVersions/${v.id}/appStoreReviewDetail`).catch(() => null);
+	if (existing?.data?.id) {
+		await call('PATCH', `/appStoreReviewDetails/${existing.data.id}`, {
+			data: { type: 'appStoreReviewDetails', id: existing.data.id, attributes: REVIEW_CONTACT },
+		});
+		console.log('updated the App Review contact details');
+		return;
+	}
+	await call('POST', '/appStoreReviewDetails', {
+		data: {
+			type: 'appStoreReviewDetails',
+			attributes: REVIEW_CONTACT,
+			relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: v.id } } },
+		},
+	});
+	console.log('wrote the App Review contact details');
 }
 
 async function attachBuild() {
@@ -326,7 +376,9 @@ try {
 		case 'screenshots': await screenshots(); break;
 		case 'age-rating': await ageRating(); break;
 		case 'categories': await categories(); break;
+		case 'privacy-url': await privacyUrl(); break;
 		case 'build': await attachBuild(); break;
+		case 'review-detail': await reviewDetail(); break;
 		case 'submit': await submit(); break;
 		default:
 			console.error('commands: status | metadata | screenshots | age-rating | build | submit');

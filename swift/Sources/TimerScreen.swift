@@ -240,7 +240,7 @@ struct TimerScreen: View {
         VStack(spacing: 10) {
             if model.isAlerting && model.soundOn {
                 Button(action: model.silenceAlarm) {
-                    Text("Stop the beeping")
+                    Text("Stop")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(palette.paper)
                         .padding(.horizontal, 18)
