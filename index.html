@@ -1,0 +1,628 @@
+<title>Red Wedge Timer</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Lexend:wght@400;500&family=Azeret+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --paper:      #FBF7F0;
+    --face:       #FFFFFF;
+    --ink:        #21242B;
+    --muted:      #8C8580;
+    --hairline:   #E2DCD1;
+    --wedge:      #E23A26;
+    --wedge-soft: #F6C9C0;
+    --teal:       #2F8F7A;
+    --chip:       #FFFFFF;
+    --chip-on:    #21242B;
+    --shadow:     0 14px 34px -18px rgba(33,36,43,.45);
+    --rim:        #ECE5D9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #191B20;
+      --face:       #262A32;
+      --ink:        #F2EFE9;
+      --muted:      #97918B;
+      --hairline:   #383D47;
+      --wedge:      #F0503A;
+      --wedge-soft: #5A2A24;
+      --teal:       #4FBBA0;
+      --chip:       #2E333C;
+      --chip-on:    #F2EFE9;
+      --shadow:     0 14px 34px -18px rgba(0,0,0,.7);
+      --rim:        #343A44;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #191B20;
+    --face:       #262A32;
+    --ink:        #F2EFE9;
+    --muted:      #97918B;
+    --hairline:   #383D47;
+    --wedge:      #F0503A;
+    --wedge-soft: #5A2A24;
+    --teal:       #4FBBA0;
+    --chip:       #2E333C;
+    --chip-on:    #F2EFE9;
+    --shadow:     0 14px 34px -18px rgba(0,0,0,.7);
+    --rim:        #343A44;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Lexend", ui-sans-serif, system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .shell {
+    max-width: 560px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 18px 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+
+  .topbar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .wordmark {
+    font-family: "Fredoka", ui-sans-serif, sans-serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    letter-spacing: .01em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wordmark i {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background:
+      conic-gradient(var(--wedge) 0 75%, var(--rim) 75% 100%);
+    box-shadow: inset 0 0 0 1.5px var(--face);
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    border: 0;
+    background: none;
+  }
+  button:focus-visible,
+  .dialwrap:focus-visible {
+    outline: 3px solid var(--teal);
+    outline-offset: 3px;
+    border-radius: 12px;
+  }
+
+  .soundbtn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: var(--chip);
+    border: 1.5px solid var(--hairline);
+    font-size: .82rem;
+    color: var(--muted);
+  }
+  .soundbtn[aria-pressed="true"] { color: var(--ink); }
+  .soundbtn svg { width: 15px; height: 15px; }
+
+  /* ---- dial ---- */
+  .dialwrap {
+    position: relative;
+    width: clamp(252px, 80vw, 424px);
+    aspect-ratio: 1;
+    max-width: 100%;
+    touch-action: none;
+    border-radius: 50%;
+    cursor: grab;
+  }
+  .dialwrap.dragging { cursor: grabbing; }
+  .dialwrap svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+  .face  { fill: var(--face); filter: drop-shadow(var(--shadow)); }
+  .rim   { fill: none; stroke: var(--rim); stroke-width: 7; }
+  .tick  { stroke: var(--hairline); stroke-width: 1.4; stroke-linecap: round; }
+  .tick.major { stroke: var(--muted); stroke-width: 2.4; }
+  .num {
+    fill: var(--muted);
+    font-family: "Azeret Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 500;
+  }
+  .wedge { fill: var(--wedge); }
+  .hub   { fill: var(--face); stroke: var(--rim); stroke-width: 2; }
+  .knob  { fill: var(--wedge); }
+
+  .readout {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    pointer-events: none;
+  }
+  .clock {
+    font-family: "Azeret Mono", ui-monospace, monospace;
+    font-weight: 500;
+    font-size: clamp(2.1rem, 11vw, 3.1rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+    line-height: 1;
+  }
+  .state {
+    font-size: .74rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-height: 1em;
+  }
+  .dialwrap.is-done .state { color: var(--wedge); }
+
+  @keyframes ring {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.035); }
+  }
+  .dialwrap.is-done { animation: ring .7s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .dialwrap.is-done { animation: none; }
+  }
+
+  /* ---- setting the time ---- */
+  .setter { width: 100%; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .fieldlabel {
+    font-size: .74rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .chip {
+    min-width: 46px;
+    padding: 9px 12px;
+    border-radius: 11px;
+    background: var(--chip);
+    border: 1.5px solid var(--hairline);
+    font-family: "Azeret Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: .9rem;
+    line-height: 1;
+    transition: transform .12s ease;
+  }
+  .chip:hover { transform: translateY(-1px); }
+  .chip[aria-pressed="true"] {
+    background: var(--chip-on);
+    border-color: var(--chip-on);
+    color: var(--paper);
+  }
+
+  /* ---- controls ---- */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .step {
+    width: 52px; height: 52px;
+    border-radius: 16px;
+    background: var(--chip);
+    border: 1.5px solid var(--hairline);
+    font-family: "Fredoka", sans-serif;
+    font-size: 1.25rem;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+  }
+  .step:disabled { opacity: .4; cursor: not-allowed; }
+  .go {
+    font-family: "Fredoka", ui-sans-serif, sans-serif;
+    font-weight: 600;
+    font-size: 1.2rem;
+    padding: 15px 44px;
+    border-radius: 18px;
+    background: var(--wedge);
+    color: #FFF8F5;
+    box-shadow: 0 8px 0 -2px color-mix(in srgb, var(--wedge) 70%, #000);
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .go:active { transform: translateY(3px); box-shadow: 0 4px 0 -2px color-mix(in srgb, var(--wedge) 70%, #000); }
+  .go.running { background: var(--teal); box-shadow: 0 8px 0 -2px color-mix(in srgb, var(--teal) 70%, #000); }
+  .reset {
+    color: var(--muted);
+    font-size: .88rem;
+    padding: 8px 14px;
+    border-radius: 10px;
+    text-decoration: underline;
+    text-decoration-color: var(--hairline);
+    text-underline-offset: 4px;
+  }
+  .reset:hover { color: var(--ink); }
+
+  .hint {
+    max-width: 34ch;
+    text-align: center;
+    font-size: .82rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0;
+  }
+  kbd {
+    font-family: "Azeret Mono", monospace;
+    font-size: .74rem;
+    border: 1.5px solid var(--hairline);
+    border-bottom-width: 2.5px;
+    border-radius: 6px;
+    padding: 1px 5px;
+    color: var(--ink);
+  }
+</style>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="wordmark"><i aria-hidden="true"></i> Red Wedge Timer</div>
+    <button class="soundbtn" id="sound-toggle" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M11 5 6 9H3v6h3l5 4V5Z" fill="currentColor" stroke="none"/>
+        <path class="wave" d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>
+      </svg>
+      <span id="sound-label">Beep on</span>
+    </button>
+  </div>
+
+  <div class="dialwrap" id="dial" role="slider" tabindex="0"
+       aria-label="Minutes on the timer" aria-valuemin="1" aria-valuemax="60" aria-valuenow="15">
+    <svg viewBox="0 0 224 224" aria-hidden="true">
+      <circle class="face" cx="112" cy="112" r="103"/>
+      <circle class="rim"  cx="112" cy="112" r="103"/>
+      <g id="ticks"></g>
+      <path class="wedge" id="wedge" d=""/>
+      <circle class="hub"  cx="112" cy="112" r="9"/>
+      <circle class="knob" id="knob" cx="112" cy="112" r="4.5"/>
+    </svg>
+    <div class="readout">
+      <div class="clock" id="clock">15:00</div>
+      <div class="state" id="state">15 minutes</div>
+    </div>
+  </div>
+
+  <div class="setter">
+    <span class="fieldlabel" id="preset-label">How long?</span>
+    <div class="chips" id="chips" role="group" aria-labelledby="preset-label"></div>
+  </div>
+
+  <div class="controls">
+    <button class="step" id="minus" aria-label="One minute less">&minus;</button>
+    <button class="go" id="go">Start</button>
+    <button class="step" id="plus" aria-label="One minute more">+</button>
+  </div>
+
+  <button class="reset" id="reset">Back to the start</button>
+
+  <p class="hint">Turn the dial to pick any time up to an hour. <kbd>Space</kbd> starts and pauses.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var FULL = 60 * 60;              // the dial is one hour, like the real device
+  var PRESETS = [1, 2, 3, 5, 10, 15, 20, 30, 45, 60];
+  var CX = 112, CY = 112, R_WEDGE = 84;
+
+  var dial = document.getElementById("dial");
+  var wedge = document.getElementById("wedge");
+  var knob = document.getElementById("knob");
+  var clockEl = document.getElementById("clock");
+  var stateEl = document.getElementById("state");
+  var goBtn = document.getElementById("go");
+  var resetBtn = document.getElementById("reset");
+  var minusBtn = document.getElementById("minus");
+  var plusBtn = document.getElementById("plus");
+  var chipsEl = document.getElementById("chips");
+  var soundBtn = document.getElementById("sound-toggle");
+  var soundLabel = document.getElementById("sound-label");
+
+  var duration = 15 * 60;   // seconds the kid gets
+  var remaining = duration;
+  var endsAt = 0;
+  var running = false;
+  var done = false;
+  var sound = true;
+  var raf = null;
+  var alarmTimer = null;
+  var ac = null;
+
+  /* ---------- dial face ---------- */
+  function polar(angleDeg, radius) {
+    var a = (angleDeg - 90) * Math.PI / 180;
+    return { x: CX + radius * Math.cos(a), y: CY + radius * Math.sin(a) };
+  }
+
+  (function drawTicks() {
+    var svgns = "http://www.w3.org/2000/svg";
+    var g = document.getElementById("ticks");
+    for (var m = 0; m < 60; m++) {
+      var major = m % 5 === 0;
+      var a = m * 6;
+      var p1 = polar(a, 87);
+      var p2 = polar(a, major ? 96 : 93);
+      var line = document.createElementNS(svgns, "line");
+      line.setAttribute("class", major ? "tick major" : "tick");
+      line.setAttribute("x1", p1.x.toFixed(2));
+      line.setAttribute("y1", p1.y.toFixed(2));
+      line.setAttribute("x2", p2.x.toFixed(2));
+      line.setAttribute("y2", p2.y.toFixed(2));
+      g.appendChild(line);
+    }
+    // numerals climb clockwise, so the wedge's edge points at the minutes left
+    for (var n = 5; n <= 60; n += 5) {
+      var pos = polar(n === 60 ? 0 : n * 6, 76);
+      var t = document.createElementNS(svgns, "text");
+      t.setAttribute("class", "num");
+      t.setAttribute("x", pos.x.toFixed(2));
+      t.setAttribute("y", pos.y.toFixed(2));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("dominant-baseline", "central");
+      t.textContent = String(n);
+      g.appendChild(t);
+    }
+  })();
+
+  function wedgePath(seconds) {
+    var frac = Math.max(0, Math.min(1, seconds / FULL));
+    if (frac <= 0) return "";
+    if (frac >= 0.99995) {
+      return "M " + CX + " " + (CY - R_WEDGE) +
+             " A " + R_WEDGE + " " + R_WEDGE + " 0 1 1 " + (CX - 0.01) + " " + (CY - R_WEDGE) + " Z";
+    }
+    var end = polar(frac * 360, R_WEDGE);
+    var large = frac > 0.5 ? 1 : 0;
+    return "M " + CX + " " + CY +
+           " L " + CX + " " + (CY - R_WEDGE) +
+           " A " + R_WEDGE + " " + R_WEDGE + " 0 " + large + " 1 " + end.x.toFixed(2) + " " + end.y.toFixed(2) +
+           " Z";
+  }
+
+  /* ---------- render ---------- */
+  function mmss(seconds) {
+    var s = Math.max(0, Math.ceil(seconds));
+    var m = Math.floor(s / 60);
+    return (m < 10 ? "0" : "") + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
+  }
+
+  function render() {
+    wedge.setAttribute("d", wedgePath(remaining));
+    var tip = polar((Math.max(0, remaining) / FULL) * 360, R_WEDGE - 6);
+    knob.setAttribute("cx", tip.x.toFixed(2));
+    knob.setAttribute("cy", tip.y.toFixed(2));
+    knob.style.opacity = remaining > 30 ? "1" : "0";
+
+    clockEl.textContent = mmss(remaining);
+
+    if (done) stateEl.textContent = "Time's up!";
+    else if (running) stateEl.textContent = "counting down";
+    else if (remaining < duration) stateEl.textContent = "paused";
+    else stateEl.textContent = Math.round(duration / 60) + (duration === 60 ? " minute" : " minutes");
+
+    dial.classList.toggle("is-done", done);
+    dial.setAttribute("aria-valuenow", String(Math.round(duration / 60)));
+    dial.setAttribute("aria-valuetext", mmss(remaining) + " left");
+
+    goBtn.textContent = done ? "Again" : running ? "Pause" : remaining < duration ? "Keep going" : "Start";
+    goBtn.classList.toggle("running", running);
+    minusBtn.disabled = running || duration <= 60;
+    plusBtn.disabled = running || duration >= FULL;
+
+    var mins = Math.round(duration / 60);
+    Array.prototype.forEach.call(chipsEl.children, function (chip) {
+      chip.setAttribute("aria-pressed", String(Number(chip.dataset.min) === mins && remaining === duration));
+    });
+  }
+
+  /* ---------- sound ---------- */
+  function audio() {
+    if (!ac) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      ac = new Ctx();
+    }
+    if (ac.state === "suspended") ac.resume();
+    return ac;
+  }
+
+  function pulse(at, freq) {
+    var a = ac;
+    var osc = a.createOscillator();
+    var gain = a.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.28, at + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+    osc.connect(gain).connect(a.destination);
+    osc.start(at);
+    osc.stop(at + 0.26);
+  }
+
+  function triple() {
+    if (!sound || !audio()) return;
+    var t = ac.currentTime + 0.02;
+    pulse(t, 880);
+    pulse(t + 0.28, 880);
+    pulse(t + 0.56, 1174);
+  }
+
+  function startAlarm() {
+    stopAlarm();
+    triple();
+    var left = 7;
+    alarmTimer = setInterval(function () {
+      if (--left <= 0) return stopAlarm();
+      triple();
+    }, 1500);
+  }
+
+  function stopAlarm() {
+    if (alarmTimer) clearInterval(alarmTimer);
+    alarmTimer = null;
+  }
+
+  function blip(freq) {
+    if (!sound || !audio()) return;
+    pulse(ac.currentTime + 0.01, freq || 660);
+  }
+
+  /* ---------- timer ---------- */
+  function tick() {
+    remaining = (endsAt - Date.now()) / 1000;
+    if (remaining <= 0) {
+      remaining = 0;
+      running = false;
+      done = true;
+      render();
+      startAlarm();
+      return;
+    }
+    render();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function start() {
+    if (running) return;
+    audio();                       // this click is the gesture that unlocks sound
+    if (done) { done = false; remaining = duration; }
+    if (remaining <= 0) remaining = duration;
+    endsAt = Date.now() + remaining * 1000;
+    running = true;
+    render();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function pause() {
+    if (!running) return;
+    running = false;
+    cancelAnimationFrame(raf);
+    remaining = Math.max(0, (endsAt - Date.now()) / 1000);
+    render();
+  }
+
+  function reset() {
+    running = false;
+    done = false;
+    cancelAnimationFrame(raf);
+    stopAlarm();
+    remaining = duration;
+    render();
+  }
+
+  function setMinutes(mins, quiet) {
+    duration = Math.max(60, Math.min(FULL, Math.round(mins) * 60));
+    running = false;
+    done = false;
+    cancelAnimationFrame(raf);
+    stopAlarm();
+    remaining = duration;
+    render();
+    if (!quiet) blip(520 + (duration / FULL) * 420);
+  }
+
+  /* ---------- presets ---------- */
+  PRESETS.forEach(function (m) {
+    var b = document.createElement("button");
+    b.className = "chip";
+    b.type = "button";
+    b.dataset.min = String(m);
+    b.setAttribute("aria-pressed", "false");
+    b.textContent = m;
+    b.setAttribute("aria-label", m + (m === 1 ? " minute" : " minutes"));
+    b.addEventListener("click", function () { setMinutes(m); });
+    chipsEl.appendChild(b);
+  });
+
+  /* ---------- turning the dial ---------- */
+  function minutesFromEvent(ev) {
+    var box = dial.getBoundingClientRect();
+    var dx = ev.clientX - (box.left + box.width / 2);
+    var dy = ev.clientY - (box.top + box.height / 2);
+    var deg = Math.atan2(dx, -dy) * 180 / Math.PI;
+    if (deg < 0) deg += 360;
+    var mins = Math.round(deg / 6);
+    return mins < 1 ? (deg > 180 ? 60 : 1) : mins;
+  }
+
+  var dragging = false;
+  dial.addEventListener("pointerdown", function (ev) {
+    dragging = true;
+    dial.classList.add("dragging");
+    dial.setPointerCapture(ev.pointerId);
+    stopAlarm();
+    setMinutes(minutesFromEvent(ev));
+  });
+  dial.addEventListener("pointermove", function (ev) {
+    if (!dragging) return;
+    var m = minutesFromEvent(ev);
+    if (m * 60 !== duration) setMinutes(m);
+  });
+  function endDrag() { dragging = false; dial.classList.remove("dragging"); }
+  dial.addEventListener("pointerup", endDrag);
+  dial.addEventListener("pointercancel", endDrag);
+
+  dial.addEventListener("keydown", function (ev) {
+    var mins = Math.round(duration / 60);
+    if (ev.key === "ArrowUp" || ev.key === "ArrowRight") { setMinutes(mins + 1); ev.preventDefault(); }
+    else if (ev.key === "ArrowDown" || ev.key === "ArrowLeft") { setMinutes(mins - 1); ev.preventDefault(); }
+    else if (ev.key === "Home") { setMinutes(1); ev.preventDefault(); }
+    else if (ev.key === "End") { setMinutes(60); ev.preventDefault(); }
+  });
+
+  /* ---------- buttons & keys ---------- */
+  goBtn.addEventListener("click", function () {
+    stopAlarm();
+    if (running) pause(); else start();
+  });
+  resetBtn.addEventListener("click", reset);
+  minusBtn.addEventListener("click", function () { setMinutes(Math.round(duration / 60) - 1); });
+  plusBtn.addEventListener("click", function () { setMinutes(Math.round(duration / 60) + 1); });
+
+  soundBtn.addEventListener("click", function () {
+    sound = !sound;
+    soundBtn.setAttribute("aria-pressed", String(sound));
+    soundLabel.textContent = sound ? "Beep on" : "Beep off";
+    soundBtn.querySelector(".wave").style.opacity = sound ? "1" : ".25";
+    if (sound) blip(784); else stopAlarm();
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.target && ev.target.closest && ev.target.closest("button")) return;
+    if (ev.code === "Space" || ev.key === "Enter") {
+      stopAlarm();
+      if (running) pause(); else start();
+      ev.preventDefault();
+    } else if (ev.key === "Escape") {
+      reset();
+    }
+  });
+
+  render();
+})();
+</script>

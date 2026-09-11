@@ -1,0 +1,270 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1000000000000000000001 /* App_iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001 /* App_iOS.swift */; };
+		A1000000000000000000002 /* App_macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000002 /* App_macOS.swift */; };
+		A1000000000000000000003 /* Beeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003 /* Beeper.swift */; };
+		A1000000000000000000004 /* DialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004 /* DialView.swift */; };
+		A1000000000000000000005 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000005 /* Palette.swift */; };
+		A1000000000000000000006 /* TimerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000006 /* TimerModel.swift */; };
+		A1000000000000000000007 /* TimerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000007 /* TimerScreen.swift */; };
+		A1000000000000000000010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000010 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B1000000000000000000001 /* App_iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = App_iOS.swift; path = ../swift/Sources/App_iOS.swift; sourceTree = "<group>"; };
+		B1000000000000000000002 /* App_macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = App_macOS.swift; path = ../swift/Sources/App_macOS.swift; sourceTree = "<group>"; };
+		B1000000000000000000003 /* Beeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Beeper.swift; path = ../swift/Sources/Beeper.swift; sourceTree = "<group>"; };
+		B1000000000000000000004 /* DialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DialView.swift; path = ../swift/Sources/DialView.swift; sourceTree = "<group>"; };
+		B1000000000000000000005 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Palette.swift; path = ../swift/Sources/Palette.swift; sourceTree = "<group>"; };
+		B1000000000000000000006 /* TimerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimerModel.swift; path = ../swift/Sources/TimerModel.swift; sourceTree = "<group>"; };
+		B1000000000000000000007 /* TimerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TimerScreen.swift; path = ../swift/Sources/TimerScreen.swift; sourceTree = "<group>"; };
+		B1000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B1000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C1000000000000000000001 /* Red Wedge Timer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Red Wedge Timer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D1000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E1000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				E1000000000000000000002 /* Sources */,
+				B1000000000000000000010 /* Assets.xcassets */,
+				B1000000000000000000011 /* Info.plist */,
+				E1000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E1000000000000000000002 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				B1000000000000000000001 /* App_iOS.swift */,
+				B1000000000000000000002 /* App_macOS.swift */,
+				B1000000000000000000003 /* Beeper.swift */,
+				B1000000000000000000004 /* DialView.swift */,
+				B1000000000000000000005 /* Palette.swift */,
+				B1000000000000000000006 /* TimerModel.swift */,
+				B1000000000000000000007 /* TimerScreen.swift */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		E1000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C1000000000000000000001 /* Red Wedge Timer.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F1000000000000000000001 /* RedWedgeTimer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = L1000000000000000000002 /* Build configuration list for PBXNativeTarget "RedWedgeTimer" */;
+			buildPhases = (
+				I1000000000000000000001 /* Sources */,
+				D1000000000000000000001 /* Frameworks */,
+				H1000000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RedWedgeTimer;
+			productName = RedWedgeTimer;
+			productReference = C1000000000000000000001 /* Red Wedge Timer.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		G1000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					F1000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = L1000000000000000000001 /* Build configuration list for PBXProject "RedWedgeTimer" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = E1000000000000000000001;
+			productRefGroup = E1000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F1000000000000000000001 /* RedWedgeTimer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		H1000000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000010 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		I1000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000001 /* App_iOS.swift in Sources */,
+				A1000000000000000000002 /* App_macOS.swift in Sources */,
+				A1000000000000000000003 /* Beeper.swift in Sources */,
+				A1000000000000000000004 /* DialView.swift in Sources */,
+				A1000000000000000000005 /* Palette.swift in Sources */,
+				A1000000000000000000006 /* TimerModel.swift in Sources */,
+				A1000000000000000000007 /* TimerScreen.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		J1000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		J1000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		K1000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bersling.redwedgetimer;
+				PRODUCT_NAME = "Red Wedge Timer";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		K1000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = MTV8K47N4D;
+				PROVISIONING_PROFILE_SPECIFIER = "Red Wedge Timer App Store";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bersling.redwedgetimer;
+				PRODUCT_NAME = "Red Wedge Timer";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		L1000000000000000000001 /* Build configuration list for PBXProject "RedWedgeTimer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				J1000000000000000000001 /* Debug */,
+				J1000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		L1000000000000000000002 /* Build configuration list for PBXNativeTarget "RedWedgeTimer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				K1000000000000000000001 /* Debug */,
+				K1000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = G1000000000000000000001 /* Project object */;
+}

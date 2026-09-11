@@ -1,0 +1,4 @@
+# build output
+swift/*.app/
+*.dSYM/
+.DS_Store
