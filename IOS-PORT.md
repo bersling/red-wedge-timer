@@ -4,6 +4,22 @@ Decided 2026-09-11. The macOS app in `swift/` works; this is the plan to ship th
 same thing on iPhone, reusing the App Store Connect tooling from
 `~/IT-Projects/toddler-games`.
 
+## Submitted
+
+Version 1.0 (build 2) went to review on 13 September 2026, 09:06 UTC, and is
+WAITING_FOR_REVIEW. Release type is AFTER_APPROVAL, so approval publishes it
+without anyone pressing anything. Free worldwide, base territory CHE.
+
+Everything on the listing was set through `asc-store.mjs` except two things that
+only exist in the web UI: App Privacy (published, "data not collected") and the
+errors that block submission, which the version page shows when you press "Add
+for Review" — that page is the fastest way to find what the API will only call
+"not in valid state". The two it caught: the version's `copyright` attribute and
+a price tier.
+
+If Apple rejects: fix, bump `CURRENT_PROJECT_VERSION` in the Xcode project, run
+`ios/release.sh`, then `node ios/asc-store.mjs build` and `submit` again.
+
 ## Status
 
 Done, verified on a booted iPhone simulator: the shared sources build for both
