@@ -63,6 +63,30 @@ final class TimerModel: ObservableObject {
     private var warned = false
     private let beeper = Beeper()
     private static let endsAtKey = "endsAt"
+    private static let systemAlarmKey = "systemAlarmID"
+
+    /// The system alarm standing in for the beeper, while one is scheduled or
+    /// ringing. Nil means the app has to make the noise itself.
+    private var systemAlarmID: UUID? {
+        didSet { UserDefaults.standard.set(systemAlarmID?.uuidString, forKey: Self.systemAlarmKey) }
+    }
+    private var schedulingAlarm: Task<Void, Never>?
+    private var watchingAlarms: Task<Void, Never>?
+
+    init() {
+        #if os(iOS)
+        if #available(iOS 26.0, *) {
+            systemAlarmID = UserDefaults.standard.string(forKey: Self.systemAlarmKey).flatMap(UUID.init)
+            // someone pressed Stop on the lock screen, or in the system banner
+            watchingAlarms = SystemAlarm.watch { [weak self] pending in
+                guard let self, let id = self.systemAlarmID, !pending.contains(id),
+                      !self.isRunning else { return }
+                self.systemAlarmID = nil
+                self.silenceAlarm()
+            }
+        }
+        #endif
+    }
 
     var duration: TimeInterval { Double(minutes) * 60 }
     var soundOn: Bool { alarmLength != .off }
@@ -116,7 +140,7 @@ final class TimerModel: ObservableObject {
         endsAt = Date().addingTimeInterval(remaining)
         isRunning = true
         rememberEndDate()
-        scheduleNotification()
+        scheduleAlarm()
         ticker = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
             MainActor.assumeIsolated { self.tick() }
         }
@@ -141,7 +165,7 @@ final class TimerModel: ObservableObject {
         isRunning = false
         endsAt = nil
         forgetEndDate()
-        cancelNotification()
+        cancelAlarm()
         silenceAlarm()
     }
 
@@ -176,17 +200,55 @@ final class TimerModel: ObservableObject {
         start()
     }
 
+    /// Makes sure something rings when the disk empties, whatever the app is
+    /// doing by then: a system alarm where iOS has them, else a notification.
+    private func scheduleAlarm() {
+        #if os(iOS)
+        guard alarmLength != .off, let endsAt else { return }
+        if #available(iOS 26.0, *) {
+            let sound = sound
+            schedulingAlarm = Task {
+                let id = await SystemAlarm.schedule(at: endsAt, sound: sound)
+                // a Pause or Reset that landed while we waited wins
+                guard !Task.isCancelled, self.endsAt == endsAt else {
+                    if let id { SystemAlarm.cancel(id) }
+                    return
+                }
+                if let id {
+                    self.systemAlarmID = id
+                } else {
+                    self.scheduleNotification()
+                }
+            }
+        } else {
+            scheduleNotification()
+        }
+        #endif
+    }
+
+    private func cancelAlarm() {
+        #if os(iOS)
+        schedulingAlarm?.cancel()
+        schedulingAlarm = nil
+        if #available(iOS 26.0, *), let id = systemAlarmID { SystemAlarm.cancel(id) }
+        systemAlarmID = nil
+        cancelNotification()
+        #endif
+    }
+
+    /// Fallback for when there is no system alarm: rings once, and the silent
+    /// switch mutes it, but it is better than nothing.
     private func scheduleNotification() {
         #if os(iOS)
-        guard alarmLength != .off, remaining > 0 else { return }
+        guard let endsAt, endsAt.timeIntervalSinceNow > 0 else { return }
         let content = UNMutableNotificationContent()
         content.title = "Time's up!"
         content.body = "The red disk is gone."
-        content.sound = .defaultCritical
+        content.sound = UNNotificationSound(named: UNNotificationSoundName("\(sound.rawValue).caf"))
         let request = UNNotificationRequest(
             identifier: "redwedge.alarm",
             content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: remaining, repeats: false)
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: endsAt.timeIntervalSinceNow, repeats: false)
         )
         let centre = UNUserNotificationCenter.current()
         centre.requestAuthorization(options: [.alert, .sound]) { granted, _ in
@@ -225,10 +287,20 @@ final class TimerModel: ObservableObject {
     // MARK: - the alarm keeps going until somebody stops it
 
     private func beginAlarm() {
+        #if os(iOS)
+        if #available(iOS 26.0, *), let id = systemAlarmID {
+            // the system rings; the app only pulses, and cuts it short for the
+            // shorter lengths. Already stopped on the lock screen: nothing to do.
+            guard SystemAlarm.isPending(id) else {
+                systemAlarmID = nil
+                return
+            }
+        }
+        #endif
         alarmStartedAt = Date()
         isAlerting = true
-        if alarmLength != .off { beeper.alarm(sound) }
-        alarmTimer = Timer.scheduledTimer(withTimeInterval: 1.4, repeats: true) { _ in
+        if alarmLength != .off, systemAlarmID == nil { beeper.alarm(sound) }
+        alarmTimer = Timer.scheduledTimer(withTimeInterval: AlarmSound.repeatEvery, repeats: true) { _ in
             MainActor.assumeIsolated { self.repeatAlarm() }
         }
     }
@@ -241,10 +313,16 @@ final class TimerModel: ObservableObject {
             silenceAlarm()
             return
         }
-        if alarmLength != .off { beeper.alarm(sound) }
+        if alarmLength != .off, systemAlarmID == nil { beeper.alarm(sound) }
     }
 
     func silenceAlarm() {
+        #if os(iOS)
+        if #available(iOS 26.0, *), !isRunning, let id = systemAlarmID {
+            SystemAlarm.cancel(id)
+            systemAlarmID = nil
+        }
+        #endif
         alarmTimer?.invalidate()
         alarmTimer = nil
         alarmStartedAt = nil
@@ -254,10 +332,19 @@ final class TimerModel: ObservableObject {
     func setSound(_ choice: AlarmSound) {
         sound = choice
         if alarmLength != .off { beeper.preview(choice) }
+        rescheduleAlarm()
     }
 
     func setAlarmLength(_ length: AlarmLength) {
         alarmLength = length
         if length == .off { silenceAlarm() }
+        rescheduleAlarm()
+    }
+
+    /// The system alarm carries its sound, and Off means none at all.
+    private func rescheduleAlarm() {
+        guard isRunning else { return }
+        cancelAlarm()
+        scheduleAlarm()
     }
 }

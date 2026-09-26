@@ -20,6 +20,41 @@ a price tier.
 If Apple rejects: fix, bump `CURRENT_PROJECT_VERSION` in the Xcode project, run
 `ios/release.sh`, then `node ios/asc-store.mjs build` and `submit` again.
 
+## 1.1: a real alarm (AlarmKit)
+
+1.0 did not ring on a locked phone. The audio background mode only keeps an app
+alive while it is *playing*; during the silent countdown iOS suspends it within
+seconds, so the in-app beeper never fires. The notification safety net asked for
+`.defaultCritical`, which without Apple's critical-alerts entitlement is a single
+ordinary ding that the silent switch mutes.
+
+On iOS 26 the timer is now an AlarmKit alarm (`swift/Sources/SystemAlarm.swift`):
+it rings through silent mode and Focus with the system's full-screen alert, even
+if the app is killed, and counts down as a Live Activity on the lock screen and
+in the Dynamic Island (`ios/AlarmWidget/`, bundle id
+`com.bersling.redwedgetimer.alarm`, deployment target 26.0). How it plays with the
+app:
+
+- Start schedules the alarm (asking permission the first time); Pause, Reset,
+  changing the length, sound or beep setting cancel or reschedule it. Beep "Off"
+  schedules none.
+- While an alarm is scheduled the app's own beeper stays quiet, so nothing rings
+  twice. In the foreground the app still pulses, and cuts the system alarm off
+  after 1s / 10s / 1min. Locked, it rings until someone presses Stop, like the
+  Clock app.
+- Permission refused, or iOS 17–25: the old notification, now playing the chosen
+  sound instead of pretending to be critical.
+
+AlarmKit can only play files, so the six synthesised sounds are rendered into
+`ios/Sounds/*.caf` by `ios/make-sounds.swift` (same code as the beeper, repeated
+every 1.4 s like the app, 29 s so notifications accept them too). The files are
+committed; rerun the script after changing a sound.
+
+Releasing 1.1 needs one more provisioning profile, for the extension: register
+`com.bersling.redwedgetimer.alarm` and create an App Store profile named
+"Red Wedge Timer Alarm App Store" (the Release config and ExportOptions.plist
+expect that name), then install it alongside the app's.
+
 ## Status
 
 Done, verified on a booted iPhone simulator: the shared sources build for both

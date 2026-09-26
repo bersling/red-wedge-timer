@@ -8,6 +8,7 @@
 	<key>provisioningProfiles</key>
 	<dict>
 		<key>com.bersling.redwedgetimer</key><string>Red Wedge Timer App Store</string>
+		<key>com.bersling.redwedgetimer.alarm</key><string>Red Wedge Timer Alarm App Store</string>
 	</dict>
 	<key>uploadSymbols</key><true/>
 	<key>destination</key><string>export</string>

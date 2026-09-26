@@ -6,8 +6,9 @@ import UIKit
 #endif
 
 /// What the timer shouts with when the disk is empty. Every one of these is
-/// synthesised from sine partials at runtime — the app ships no audio files and
-/// borrows nobody's recording, so there is nothing to license.
+/// synthesised from sine partials — it borrows nobody's recording, so there is
+/// nothing to license. The iPhone app also carries them pre-rendered to files
+/// (ios/make-sounds.swift), because the system alarm can only play a file.
 enum AlarmSound: String, CaseIterable, Identifiable {
     case beeps, chime, cuckoo, marimba, bell, buzzer
 
@@ -23,6 +24,10 @@ enum AlarmSound: String, CaseIterable, Identifiable {
         case .buzzer: "Buzzer"
         }
     }
+
+    /// How often the alarm starts another round. Rounds longer than this queue
+    /// up behind each other, so they play back to back instead.
+    static let repeatEvery = 1.4
 
     /// Seconds of sound in one round of this pattern.
     var length: Double {
@@ -162,13 +167,26 @@ final class Beeper {
         let cacheKey = "\(key)@\(Int(rate))"
         if let ready = cache[cacheKey] { return ready }
 
-        let frames = AVAudioFrameCount(rate * length)
+        let samples = Self.render(notes, length: length, rate: rate)
+        let frames = AVAudioFrameCount(samples.count)
         guard frames > 0,
               let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
               let channels = buf.floatChannelData else { return nil }
         buf.frameLength = frames
 
-        for frame in 0..<Int(frames) {
+        for channel in 0..<Int(format.channelCount) {
+            samples.withUnsafeBufferPointer { channels[channel].update(from: $0.baseAddress!, count: samples.count) }
+        }
+        cache[cacheKey] = buf
+        return buf
+    }
+
+    /// One mono take of the notes. Also what ios/make-sounds.swift writes to the
+    /// files the system alarm plays, so both sound the same.
+    static func render(_ notes: [Note], length: Double, rate: Double) -> [Float] {
+        let frames = Int(rate * length)
+        var out = [Float](repeating: 0, count: max(0, frames))
+        for frame in 0..<frames {
             let t = Double(frame) / rate
             var sample = 0.0
             for note in notes where t >= note.start && t < note.start + note.length {
@@ -181,13 +199,9 @@ final class Beeper {
                 }
                 sample += voice * envelope * 0.34
             }
-            let value = Float(max(-1, min(1, sample)))
-            for channel in 0..<Int(format.channelCount) {
-                channels[channel][frame] = value
-            }
+            out[frame] = Float(max(-1, min(1, sample)))
         }
-        cache[cacheKey] = buf
-        return buf
+        return out
     }
 
     private func play(_ notes: [Note], length: Double, key: String) {
