@@ -35,6 +35,11 @@ struct TimerScreen: View {
         .onChange(of: phase) { _, now in
             if now == .active { model.catchUp() }
         }
+        // the disk is the whole point: keep it on screen while it shrinks and
+        // while it rings, and let the phone sleep again afterwards
+        .onChange(of: model.isRunning || model.isAlerting, initial: true) { _, awake in
+            UIApplication.shared.isIdleTimerDisabled = awake
+        }
         #endif
     }
 

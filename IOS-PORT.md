@@ -6,8 +6,8 @@ same thing on iPhone, reusing the App Store Connect tooling from
 
 ## Submitted
 
-Version 1.0 (build 2) went to review on 13 September 2026, 09:06 UTC, and is
-WAITING_FOR_REVIEW. Release type is AFTER_APPROVAL, so approval publishes it
+Version 1.0 (build 2) went to review on 13 September 2026, 09:06 UTC, and was
+approved and released; 1.1 is below. Release type is AFTER_APPROVAL, so approval publishes it
 without anyone pressing anything. Free worldwide, base territory CHE.
 
 Everything on the listing was set through `asc-store.mjs` except two things that
@@ -50,10 +50,21 @@ AlarmKit can only play files, so the six synthesised sounds are rendered into
 every 1.4 s like the app, 29 s so notifications accept them too). The files are
 committed; rerun the script after changing a sound.
 
-Releasing 1.1 needs one more provisioning profile, for the extension: register
-`com.bersling.redwedgetimer.alarm` and create an App Store profile named
-"Red Wedge Timer Alarm App Store" (the Release config and ExportOptions.plist
-expect that name), then install it alongside the app's.
+While the timer runs or rings the app also keeps the screen awake
+(`isIdleTimerDisabled`), so the disk stays visible; it sleeps normally otherwise.
+
+The extension has its own bundle id and App Store profile, "Red Wedge Timer
+Alarm App Store" (the name the Release config and ExportOptions.plist use), made
+with `asc-provision.mjs bundle-id --extension` and `profile --extension`, then
+copied into ~/Library/MobileDevice/Provisioning Profiles.
+
+1.1 went to review on 26 September 2026 as build 4 (build 3 was pulled to add
+the keep-awake change). **It had no device test**: the AlarmKit path was only
+built and launched in the simulator, so a locked, silenced 1-minute timer is the
+first thing to try once it is live. Submitting turned up one more requirement
+the API hides behind "not in valid state": export compliance
+(`usesNonExemptEncryption` on the build). Info.plist now declares
+`ITSAppUsesNonExemptEncryption = NO`, so later builds skip that step.
 
 ## Status
 
