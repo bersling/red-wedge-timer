@@ -8,8 +8,10 @@
 //   node asc-provision.mjs bundle-id
 //   node asc-provision.mjs certificate --csr <path to .csr>
 //   node asc-provision.mjs profile
+//   node asc-provision.mjs bundle-id --extension   # same for the widget extension
+//   node asc-provision.mjs profile --extension
 //
-// Credentials come from the environment (the toddler-games .env holds them):
+// Credentials come from the repo's .env, or the environment:
 //   APPSTORECONNECT_KEY_ID, APPSTORECONNECT_ISSUER_ID, APPSTORECONNECT_P8
 //
 // Writes nothing secret to disk; the certificate and profile land in ./build.
@@ -17,10 +19,17 @@
 import { createSign, createPrivateKey } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
+// Credentials live in the repo's .env (gitignored); the environment wins.
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch {}
+
 const API = 'https://api.appstoreconnect.apple.com/v1';
-const BUNDLE_ID = 'com.bersling.redwedgetimer';
-const APP_NAME = 'Red Wedge Timer';
-const PROFILE_NAME = 'Red Wedge Timer App Store';
+// --extension switches everything to the Live Activity widget, which needs its
+// own bundle id and profile.
+const EXTENSION = process.argv.includes('--extension');
+const BUNDLE_ID = EXTENSION ? 'com.bersling.redwedgetimer.alarm' : 'com.bersling.redwedgetimer';
+const APP_NAME = EXTENSION ? 'Red Wedge Timer Alarm' : 'Red Wedge Timer';
+const PROFILE_NAME = EXTENSION ? 'Red Wedge Timer Alarm App Store' : 'Red Wedge Timer App Store';
+const PROFILE_FILE = EXTENSION ? 'build/RedWedgeAlarm.mobileprovision' : 'build/RedWedgeTimer.mobileprovision';
 
 function requireEnv(name) {
 	const value = process.env[name];
@@ -137,11 +146,8 @@ async function createProfile() {
 		},
 	});
 	await mkdir('build', { recursive: true });
-	await writeFile(
-		'build/RedWedgeTimer.mobileprovision',
-		Buffer.from(made.data.attributes.profileContent, 'base64')
-	);
-	console.log('created profile:', made.data.attributes.name, '->  build/RedWedgeTimer.mobileprovision');
+	await writeFile(PROFILE_FILE, Buffer.from(made.data.attributes.profileContent, 'base64'));
+	console.log('created profile:', made.data.attributes.name, '-> ', PROFILE_FILE);
 	return made.data;
 }
 

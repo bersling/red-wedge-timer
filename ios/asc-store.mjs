@@ -8,14 +8,17 @@
 //   node asc-store.mjs build           # attach the processed build to the version
 //   node asc-store.mjs submit          # send it to review
 //
-// Credentials from the environment, as with asc-provision.mjs.
+// Credentials from the repo's .env, or the environment.
 
 import { createSign, createPrivateKey, createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 
+// Credentials live in the repo's .env (gitignored); the environment wins.
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch {}
+
 const API = 'https://api.appstoreconnect.apple.com/v1';
 const APP_ID = '6811064404';
-const VERSION = '1.0';
+const VERSION = '1.1';
 const LOCALE = 'en-US';
 
 const LISTING = {
@@ -41,7 +44,7 @@ stretch of homework without a countdown they cannot picture.`,
 	promotionalText: 'A red disk that shrinks as the time runs out — time a child can see, not just hear about.',
 	supportUrl: 'https://github.com/bersling/red-wedge-timer',
 	marketingUrl: '',
-	whatsNew: 'First release.',
+	whatsNew: `The timer now rings like a real alarm: on a locked phone, in silent mode and through Focus, with the countdown on the lock screen and in the Dynamic Island. (iOS 26 and later; the app asks once for permission.)`,
 };
 
 function env(name) {
@@ -149,6 +152,8 @@ async function metadata() {
 				promotionalText: LISTING.promotionalText,
 				supportUrl: LISTING.supportUrl,
 				...(LISTING.marketingUrl ? { marketingUrl: LISTING.marketingUrl } : {}),
+				// Apple refuses release notes on an app's first version
+				...(VERSION !== '1.0' ? { whatsNew: LISTING.whatsNew } : {}),
 			},
 		},
 	});
@@ -325,7 +330,8 @@ async function reviewDetail() {
 
 async function attachBuild() {
 	const v = await version();
-	const builds = await call('GET', `/builds?filter[app]=${APP_ID}&limit=10`);
+	// newest first, or it picks up the build the previous version shipped
+	const builds = await call('GET', `/builds?filter[app]=${APP_ID}&sort=-uploadedDate&limit=10`);
 	const ready = builds.data.find((b) => b.attributes.processingState === 'VALID');
 	if (!ready) {
 		console.log('no processed build yet; wait and try again');

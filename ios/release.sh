@@ -4,20 +4,20 @@
 #   ./release.sh              # archive, export, upload
 #   ./release.sh --no-upload  # stop after the .ipa
 #
-# Needs the App Store Connect credentials in the environment; the toddler-games
-# .env holds them:
-#   set -a; . ~/IT-Projects/toddler-games/.env; set +a
+# Reads the App Store Connect credentials from the repo's .env (gitignored), or
+# from the environment.
 #
 # The app record has to exist in App Store Connect first — the API cannot
 # create one.
 set -euo pipefail
 cd "$(dirname "$0")"
+if [ -f ../.env ]; then set -a; . ../.env; set +a; fi
 
 UPLOAD=true
 [ "${1:-}" = "--no-upload" ] && UPLOAD=false
 
-: "${APPSTORECONNECT_KEY_ID:?set it, or source the toddler-games .env}"
-: "${APPSTORECONNECT_ISSUER_ID:?set it, or source the toddler-games .env}"
+: "${APPSTORECONNECT_KEY_ID:?set it in .env}"
+: "${APPSTORECONNECT_ISSUER_ID:?set it in .env}"
 
 ARCHIVE=build/RedWedgeTimer.xcarchive
 
@@ -36,9 +36,8 @@ echo "## built $IPA"
 if [ "$UPLOAD" = true ]; then
 	echo "## uploading"
 	# altool wants the key at a fixed location
-	mkdir -p ~/.appstoreconnect/private_keys
-	cp "${APPSTORECONNECT_P8:-$HOME/IT-Projects/toddler-games/AuthKey_${APPSTORECONNECT_KEY_ID}.p8}" \
-		~/.appstoreconnect/private_keys/"AuthKey_${APPSTORECONNECT_KEY_ID}.p8"
+	KEY=~/.appstoreconnect/private_keys/"AuthKey_${APPSTORECONNECT_KEY_ID}.p8"
+	[ -f "$KEY" ] || { mkdir -p "$(dirname "$KEY")"; cp "$APPSTORECONNECT_P8" "$KEY"; }
 	xcrun altool --upload-app -f "$IPA" -t ios \
 		--apiKey "$APPSTORECONNECT_KEY_ID" --apiIssuer "$APPSTORECONNECT_ISSUER_ID"
 	echo "## uploaded; processing takes a few minutes before the build is submittable"

@@ -2,3 +2,6 @@
 swift/*.app/
 *.dSYM/
 .DS_Store
+
+# App Store Connect credentials
+.env
