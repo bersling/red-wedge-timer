@@ -18,7 +18,7 @@ try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch {}
 
 const API = 'https://api.appstoreconnect.apple.com/v1';
 const APP_ID = '6811064404';
-const VERSION = '1.1';
+const VERSION = '1.2';
 const LOCALE = 'en-US';
 
 const LISTING = {
@@ -44,7 +44,7 @@ stretch of homework without a countdown they cannot picture.`,
 	promotionalText: 'A red disk that shrinks as the time runs out — time a child can see, not just hear about.',
 	supportUrl: 'https://github.com/bersling/red-wedge-timer',
 	marketingUrl: '',
-	whatsNew: `The timer now rings like a real alarm: on a locked phone, in silent mode and through Focus, with the countdown on the lock screen and in the Dynamic Island. (iOS 26 and later; the app asks once for permission.)`,
+	whatsNew: `While the app is open, it now rings with its own sound and no longer shows the system alarm badge. The real alarm, which rings on a locked phone and in silent mode, is set the moment you lock the phone or leave the app.`,
 };
 
 function env(name) {
