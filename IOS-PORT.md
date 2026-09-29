@@ -7,7 +7,8 @@ same thing on iPhone, reusing the App Store Connect tooling from
 ## Submitted
 
 Version 1.0 (build 2) went to review on 13 September 2026, 09:06 UTC, and was
-approved and released; 1.1 is below. Release type is AFTER_APPROVAL, so approval publishes it
+approved and released; 1.1 is below and live. 1.2 (build 5: the system alarm
+only while the app is off screen) went to review on 29 September 2026. Release type is AFTER_APPROVAL, so approval publishes it
 without anyone pressing anything. Free worldwide, base territory CHE.
 
 Everything on the listing was set through `asc-store.mjs` except two things that
