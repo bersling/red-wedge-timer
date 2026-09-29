@@ -33,7 +33,8 @@ struct TimerScreen: View {
         #if os(iOS)
         .onAppear { model.restore() }
         .onChange(of: phase) { _, now in
-            if now == .active { model.catchUp() }
+            if now == .active { model.enteredForeground() }
+            if now == .background { model.enteredBackground() }
         }
         // the disk is the whole point: keep it on screen while it shrinks and
         // while it rings, and let the phone sleep again afterwards

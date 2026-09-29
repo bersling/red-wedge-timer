@@ -8,14 +8,22 @@ import SwiftUI
 /// after the screen goes off, and its own beeper with it.
 @available(iOS 26.0, *)
 enum SystemAlarm {
-    /// Schedules an alarm for `endsAt`, asking permission the first time.
-    /// Nil when the answer is no, so the caller falls back to a notification.
+    /// Asks permission the first time; true when alarms are allowed. Called on
+    /// Start, because the alarm itself is only scheduled from the background,
+    /// where iOS cannot show the prompt.
+    static func authorize() async -> Bool {
+        let manager = AlarmManager.shared
+        if manager.authorizationState == .notDetermined {
+            _ = try? await manager.requestAuthorization()
+        }
+        return manager.authorizationState == .authorized
+    }
+
+    /// Schedules an alarm for `endsAt`. Nil without permission, so the caller
+    /// falls back to a notification.
     static func schedule(at endsAt: Date, sound: AlarmSound) async -> UUID? {
         let manager = AlarmManager.shared
         do {
-            if manager.authorizationState == .notDetermined {
-                _ = try await manager.requestAuthorization()
-            }
             guard manager.authorizationState == .authorized else { return nil }
 
             let alert: AlarmPresentation.Alert
@@ -34,7 +42,6 @@ enum SystemAlarm {
                 ),
                 tintColor: Palette.light.wedge
             )
-            // measured after the permission prompt, which can take a while
             let seconds = max(1, endsAt.timeIntervalSinceNow)
             let id = UUID()
             _ = try await manager.schedule(id: id, configuration: .timer(

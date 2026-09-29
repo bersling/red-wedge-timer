@@ -35,13 +35,16 @@ in the Dynamic Island (`ios/AlarmWidget/`, bundle id
 `com.bersling.redwedgetimer.alarm`, deployment target 26.0). How it plays with the
 app:
 
-- Start schedules the alarm (asking permission the first time); Pause, Reset,
-  changing the length, sound or beep setting cancel or reschedule it. Beep "Off"
-  schedules none.
+- The alarm only exists while the app is off screen: going to the background
+  (locking, switching apps, swiping it away) schedules it, coming back to the
+  front cancels it, so an open app shows no system countdown badge and rings
+  with its own beeper. Start asks for permission the first time, because iOS
+  cannot prompt from the background. Pause, Reset, changing the length, sound or
+  beep setting cancel or reschedule it. Beep "Off" schedules none.
 - While an alarm is scheduled the app's own beeper stays quiet, so nothing rings
-  twice. In the foreground the app still pulses, and cuts the system alarm off
-  after 1s / 10s / 1min. Locked, it rings until someone presses Stop, like the
-  Clock app.
+  twice. Back in front while it rings, the app pulses and cuts the system alarm
+  off after 1s / 10s / 1min. Locked, it rings until someone presses Stop, like
+  the Clock app.
 - Permission refused, or iOS 17–25: the old notification, now playing the chosen
   sound instead of pretending to be critical.
 

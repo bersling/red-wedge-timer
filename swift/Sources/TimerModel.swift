@@ -71,6 +71,9 @@ final class TimerModel: ObservableObject {
         didSet { UserDefaults.standard.set(systemAlarmID?.uuidString, forKey: Self.systemAlarmKey) }
     }
     private var schedulingAlarm: Task<Void, Never>?
+    /// The system alarm only stands in while the app is off screen; in front,
+    /// the app's own beeper and pulse do the job without the system's badge.
+    private var inBackground = false
     private var watchingAlarms: Task<Void, Never>?
 
     init() {
@@ -140,7 +143,7 @@ final class TimerModel: ObservableObject {
         endsAt = Date().addingTimeInterval(remaining)
         isRunning = true
         rememberEndDate()
-        scheduleAlarm()
+        askAlarmPermission()
         ticker = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
             MainActor.assumeIsolated { self.tick() }
         }
@@ -171,10 +174,33 @@ final class TimerModel: ObservableObject {
 
     /// Called when the app comes back to the front: a suspended app's timer does
     /// not tick, so the end date is the only thing worth trusting.
-    func catchUp() {
+    private func catchUp() {
         guard isRunning, let endsAt else { return }
         remaining = max(0, endsAt.timeIntervalSinceNow)
         if remaining <= 0 { tick() }
+    }
+
+    /// Leaving the screen: from here only the system can be trusted to ring.
+    func enteredBackground() {
+        inBackground = true
+        guard isRunning else { return }
+        #if os(iOS)
+        // a few seconds' grace, so the schedule lands before iOS suspends us
+        let grace = UIApplication.shared.beginBackgroundTask(withName: "schedule alarm")
+        scheduleAlarm()
+        Task {
+            await schedulingAlarm?.value
+            UIApplication.shared.endBackgroundTask(grace)
+        }
+        #endif
+    }
+
+    /// Back on screen: the app rings for itself again, so the system alarm goes,
+    /// unless it is already ringing.
+    func enteredForeground() {
+        inBackground = false
+        catchUp()
+        if isRunning { cancelAlarm() }
     }
 
     // MARK: - surviving suspension
@@ -200,8 +226,20 @@ final class TimerModel: ObservableObject {
         start()
     }
 
-    /// Makes sure something rings when the disk empties, whatever the app is
-    /// doing by then: a system alarm where iOS has them, else a notification.
+    /// iOS cannot ask for permission from the background, where the alarm gets
+    /// scheduled, so Start asks: for alarms, or for notifications without them.
+    private func askAlarmPermission() {
+        #if os(iOS)
+        guard alarmLength != .off else { return }
+        Task {
+            if #available(iOS 26.0, *), await SystemAlarm.authorize() { return }
+            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+        }
+        #endif
+    }
+
+    /// Makes sure something rings when the disk empties while the app is off
+    /// screen: a system alarm where iOS has them, else a notification.
     private func scheduleAlarm() {
         #if os(iOS)
         guard alarmLength != .off, let endsAt else { return }
@@ -338,12 +376,13 @@ final class TimerModel: ObservableObject {
     func setAlarmLength(_ length: AlarmLength) {
         alarmLength = length
         if length == .off { silenceAlarm() }
+        if isRunning { askAlarmPermission() }
         rescheduleAlarm()
     }
 
     /// The system alarm carries its sound, and Off means none at all.
     private func rescheduleAlarm() {
-        guard isRunning else { return }
+        guard isRunning, inBackground else { return }
         cancelAlarm()
         scheduleAlarm()
     }
