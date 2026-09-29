@@ -12,17 +12,13 @@ struct DialView: View {
     var body: some View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
-            let dial = side / Self.reach
             ZStack {
                 Circle()
                     .fill(palette.face)
-                    .shadow(color: .black.opacity(0.20), radius: dial * 0.05, y: dial * 0.022)
-                    .frame(width: dial, height: dial)
+                    .shadow(color: .black.opacity(0.20), radius: side * 0.05, y: side * 0.022)
                 Circle()
-                    .strokeBorder(palette.rim, lineWidth: dial * 0.026)
-                    .frame(width: dial, height: dial)
-                // spans the halo too, so the knob can stand proud of the rim
-                Canvas { ctx, size in draw(in: ctx, size: size, dial: dial) }
+                    .strokeBorder(palette.rim, lineWidth: side * 0.026)
+                Canvas { ctx, size in draw(in: ctx, size: size) }
             }
             .frame(width: side, height: side)
             .scaleEffect(pulse ? 1.035 : 1.0)
@@ -57,23 +53,12 @@ struct DialView: View {
         }
     }
 
-    /// How far the view reaches past the dial's rim, as a multiple of its
-    /// diameter: room for the knob to protrude, and a ring of extra touch area.
-    private static let reach: CGFloat = 1.1
-
     // MARK: - dial face
 
-    private func draw(in context: GraphicsContext, size: CGSize, dial side: CGFloat) {
+    private func draw(in context: GraphicsContext, size: CGSize) {
         let ctx = context
+        let side = min(size.width, size.height)
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let fraction = min(1, max(0, model.remaining / (60 * 60)))
-        let edge = 360 * fraction  // clockwise from twelve
-
-        // a faint copy of the wedge runs out to the rim, behind ticks and numerals
-        if fraction > 0.0005 {
-            ctx.fill(sector(fraction, radius: side * 0.474, center),
-                     with: .color(palette.wedgeSoft))
-        }
 
         // minute ticks, every fifth one longer
         for minute in 0..<60 {
@@ -90,8 +75,22 @@ struct DialView: View {
         }
 
         // the red disk: shrinks clockwise, so its edge points at the minutes left
+        let fraction = min(1, max(0, model.remaining / (60 * 60)))
         if fraction > 0.0005 {
-            ctx.fill(sector(fraction, radius: side * 0.300, center), with: .color(palette.wedge))
+            let radius = side * 0.300
+            var wedge = Path()
+            if fraction >= 0.9995 {
+                wedge.addEllipse(in: CGRect(x: center.x - radius, y: center.y - radius,
+                                            width: radius * 2, height: radius * 2))
+            } else {
+                wedge.move(to: center)
+                wedge.addArc(center: center, radius: radius,
+                             startAngle: .degrees(-90),
+                             endAngle: .degrees(-90 + 360 * fraction),
+                             clockwise: false)
+                wedge.closeSubpath()
+            }
+            ctx.fill(wedge, with: .color(palette.wedge))
         }
 
         // numerals sit outside the disk so the red never covers them
@@ -110,34 +109,6 @@ struct DialView: View {
         let hubRect = CGRect(x: center.x - hub, y: center.y - hub, width: hub * 2, height: hub * 2)
         ctx.fill(Path(ellipseIn: hubRect), with: .color(palette.face))
         ctx.stroke(Path(ellipseIn: hubRect), with: .color(palette.rim), lineWidth: side * 0.006)
-
-        // the knob rides the rim at the wedge's edge: something to take hold of,
-        // though a drag anywhere on the dial still sets the time
-        let knob = side * 0.048
-        let at = point(edge, side * 0.487, center)
-        let knobRect = CGRect(x: at.x - knob, y: at.y - knob, width: knob * 2, height: knob * 2)
-        ctx.drawLayer { layer in
-            layer.addFilter(.shadow(color: .black.opacity(0.25), radius: side * 0.012, y: side * 0.006))
-            layer.fill(Path(ellipseIn: knobRect), with: .color(palette.wedge))
-        }
-        ctx.stroke(Path(ellipseIn: knobRect.insetBy(dx: side * 0.005, dy: side * 0.005)),
-                   with: .color(palette.face), lineWidth: side * 0.010)
-    }
-
-    private func sector(_ fraction: Double, radius: CGFloat, _ center: CGPoint) -> Path {
-        var path = Path()
-        if fraction >= 0.9995 {
-            path.addEllipse(in: CGRect(x: center.x - radius, y: center.y - radius,
-                                       width: radius * 2, height: radius * 2))
-        } else {
-            path.move(to: center)
-            path.addArc(center: center, radius: radius,
-                        startAngle: .degrees(-90),
-                        endAngle: .degrees(-90 + 360 * fraction),
-                        clockwise: false)
-            path.closeSubpath()
-        }
-        return path
     }
 
     // MARK: - geometry
