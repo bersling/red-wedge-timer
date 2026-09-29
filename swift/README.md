@@ -14,7 +14,7 @@ Needs only the Xcode command line tools (`swiftc`). No packages, no Xcode projec
 
 ## How it works
 
-- **Set the time** — drag the knob on the red disk, or anywhere on the dial (1–60 min, one-minute steps), tap a preset,
+- **Set the time** — drag the knob on the rim, or anywhere on the dial and a little past it (1–60 min, one-minute steps), tap a preset,
   or use −/+. Setting a length makes no sound.
 - **Run it** — Start / Pause, `Space` toggles, `Esc` goes back to the start.
 - **The sound** — pick from Beeps, Chime, Cuckoo, Marimba, Bell or Buzzer in the
