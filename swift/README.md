@@ -22,7 +22,8 @@ Needs only the Xcode command line tools (`swiftc`). No packages, no Xcode projec
   runtime, so the app ships no audio files and licenses nothing.
 - **Beeping** — the chosen pattern every 1.4 s, with a Dock bounce on each
   repeat. How long it keeps that up is a choice: **Off**, **1s** (one pattern),
-  **10s**, **1min**, or **On** (until someone presses "Stop the beeping"). A
+  **10s** (the default), **1min**, or **On** (until someone presses Stop, which
+  the Start button turns into while it rings). A
   single soft tone warns at one minute left, unless beeping is off; nothing else
   makes a sound.
 - **The dial** — numerals sit *outside* the red disk so they stay readable at all

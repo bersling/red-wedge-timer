@@ -53,7 +53,7 @@ final class TimerModel: ObservableObject {
     /// True while the timer is actively shouting: the pulse and the stop button
     /// both follow this, so neither outlives the alarm.
     @Published private(set) var isAlerting = false
-    @Published private(set) var alarmLength: AlarmLength = .untilStopped
+    @Published private(set) var alarmLength: AlarmLength = .tenSeconds
     @Published private(set) var sound: AlarmSound = .beeps
 
     private var endsAt: Date?
@@ -108,8 +108,9 @@ final class TimerModel: ObservableObject {
     }
 
     var primaryLabel: String {
-        if isDone { return "Again" }
+        if isAlerting { return "Stop" }
         if isRunning { return "Pause" }
+        if isDone { return "Start" }
         return remaining < duration ? "Keep going" : "Start"
     }
 
@@ -128,8 +129,9 @@ final class TimerModel: ObservableObject {
 
     // MARK: - running
 
+    /// While it rings, the big button stops it and sets the dial back up.
     func toggle() {
-        isRunning ? pause() : start()
+        if isAlerting { reset() } else if isRunning { pause() } else { start() }
     }
 
     func start() {

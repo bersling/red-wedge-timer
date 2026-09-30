@@ -244,25 +244,14 @@ struct TimerScreen: View {
 
     private var footer: some View {
         VStack(spacing: 10) {
-            if model.isAlerting && model.soundOn {
-                Button(action: model.silenceAlarm) {
-                    Text("Stop")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(palette.paper)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .background(Capsule().fill(palette.ink))
-                }
-                .buttonStyle(.plain)
-            } else {
-                Button(action: model.reset) {
-                    Text("Back to the start")
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundStyle(palette.muted)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape, modifiers: [])
+            // the big button stops the alarm, so no second Stop down here
+            Button(action: model.reset) {
+                Text("Back to the start")
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(palette.muted)
             }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.escape, modifiers: [])
             Text(Self.hint)
                 .font(.system(size: 12, design: .rounded))
                 .foregroundStyle(palette.muted)
