@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Red Wedge Timer Setup</title>
+<meta name="description" content="How the Red Wedge Timer repository is built, signed and shipped, written so another agent can reproduce the setup for a new app.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Lexend:wght@400;500;600&family=Azeret+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a sticky table of contents on the left, one long readable column on the right;
+     the palette is the app's own (Palette.swift / index.html): paper, ink, one red wedge, a teal for "ok". */
+  :root {
+    --paper:    #FBF7F0;
+    --face:     #FFFFFF;
+    --ink:      #21242B;
+    --muted:    #8C8580;
+    --hairline: #E2DCD1;
+    --wedge:    #E23A26;
+    --wedge-soft: #F6C9C0;
+    --teal:     #2F8F7A;
+    --teal-soft: #D9EFE8;
+    --amber:    #B7791F;
+    --amber-soft: #F6E7C8;
+    --rim:      #ECE5D9;
+    --code-bg:  #F3EEE5;
+    --display: "Fredoka", "Avenir Next Rounded", "Nunito", system-ui, sans-serif;
+    --body: "Lexend", "Avenir Next", "Helvetica Neue", system-ui, sans-serif;
+    --mono: "Azeret Mono", "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #191B20; --face: #262A32; --ink: #F2EFE9; --muted: #97918B; --hairline: #383D47;
+      --wedge: #F0503A; --wedge-soft: #5A2A24; --teal: #4FBBA0; --teal-soft: #1F3D36;
+      --amber: #E0A84A; --amber-soft: #3F3420; --rim: #2E333C; --code-bg: #20242B;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #191B20; --face: #262A32; --ink: #F2EFE9; --muted: #97918B; --hairline: #383D47;
+    --wedge: #F0503A; --wedge-soft: #5A2A24; --teal: #4FBBA0; --teal-soft: #1F3D36;
+    --amber: #E0A84A; --amber-soft: #3F3420; --rim: #2E333C; --code-bg: #20242B;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 48px;
+  }
+  a { color: var(--teal); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--wedge); outline-offset: 2px; }
+
+  .page { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 48px; }
+  @media (max-width: 900px) { .page { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+
+  /* masthead */
+  .mast { grid-column: 1 / -1; padding-block: 40px 28px; border-bottom: 1px solid var(--hairline); display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+  .mast svg { flex: none; }
+  .mast h1 { font-family: var(--display); font-weight: 600; font-size: clamp(30px, 4.5vw, 44px); line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .mast p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+  .mast .meta { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin-top: 10px; display: flex; gap: 16px; flex-wrap: wrap; }
+
+  /* toc */
+  nav.toc { position: sticky; top: 24px; align-self: start; font-size: 14px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+  nav.toc a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; border-left: 2px solid transparent; }
+  nav.toc a:hover { background: var(--rim); }
+  nav.toc .eyebrow { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 18px 10px 8px; }
+  @media (max-width: 900px) {
+    nav.toc { position: static; border-bottom: 1px solid var(--hairline); padding-block: 16px; }
+    nav.toc ol { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    nav.toc .eyebrow { grid-column: 1 / -1; margin: 12px 10px 4px; }
+  }
+
+  /* article */
+  main { min-width: 0; max-width: 76ch; padding-top: 8px; }
+  main > section { padding-block: 28px 8px; border-bottom: 1px solid var(--hairline); }
+  main > section:last-child { border-bottom: 0; }
+  h2 { font-family: var(--display); font-weight: 600; font-size: 27px; margin: 0 0 14px; line-height: 1.15; text-wrap: balance; scroll-margin-top: 20px; }
+  h3 { font-family: var(--display); font-weight: 500; font-size: 19px; margin: 26px 0 8px; text-wrap: balance; }
+  p, li { max-width: 72ch; }
+  p { margin: 0 0 14px; }
+  ul, ol { padding-left: 22px; margin: 0 0 14px; }
+  li { margin-bottom: 5px; }
+  li > ul, li > ol { margin-top: 5px; }
+  strong { font-weight: 600; }
+  .lede { font-size: 18px; color: var(--ink); }
+
+  code, kbd { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); border: 1px solid var(--hairline); border-radius: 4px; padding: 1px 5px; }
+  pre { background: var(--code-bg); border: 1px solid var(--hairline); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.55; margin: 0 0 16px; }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  pre .c { color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
+  th { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; }
+  td code { white-space: nowrap; }
+  td.wrap code { white-space: normal; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .callout { border-left: 3px solid var(--wedge); background: var(--face); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 16px; }
+  .callout.ok { border-color: var(--teal); }
+  .callout.warn { border-color: var(--amber); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .tag { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); display: block; margin-bottom: 4px; }
+
+  .pill { display: inline-block; font-family: var(--mono); font-size: 11.5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--hairline); background: var(--face); white-space: nowrap; }
+  .pill.live { background: var(--teal-soft); border-color: transparent; color: var(--ink); }
+  .pill.review { background: var(--amber-soft); border-color: transparent; }
+  .pill.manual { background: var(--wedge-soft); border-color: transparent; }
+
+  /* repository tree */
+  .tree { font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+  .tree .d { color: var(--teal); }
+  .tree .c { color: var(--muted); }
+
+  /* the pipeline figure */
+  figure { margin: 0 0 18px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 44px; margin-bottom: 14px; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--wedge); color: #fff; font-family: var(--display); font-weight: 600; display: grid; place-items: center; font-size: 15px; }
+  .steps > li > p:first-child, .steps > li > strong { display: block; margin-bottom: 4px; }
+
+  dl.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; margin: 0 0 16px; font-size: 14.5px; }
+  dl.kv dt { font-family: var(--mono); font-size: 12.5px; color: var(--muted); padding-top: 2px; }
+  dl.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  @media (max-width: 520px) { dl.kv { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.kv dd { margin-bottom: 8px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="mast">
+  <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+    <circle cx="32" cy="32" r="27" fill="none" stroke="var(--hairline)" stroke-width="3"/>
+    <path d="M32 32 L32 10 A22 22 0 1 1 10 32 Z" fill="var(--wedge)"/>
+  </svg>
+  <div>
+    <h1>Red Wedge Timer Setup</h1>
+    <p>How this repository is laid out, built, signed and shipped to the App Store from the command line, written so another agent can rebuild the same setup for a different app.</p>
+    <div class="meta">
+      <span>repo: github.com/bersling/red-wedge-timer</span>
+      <span>written 2026-10-23</span>
+      <span>Xcode 26.6 · Swift 6.3 · Node 24</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <div class="eyebrow">The project</div>
+  <ol>
+    <li><a href="#overview">What it is</a></li>
+    <li><a href="#layout">Repository layout</a></li>
+    <li><a href="#toolchain">Toolchain and principles</a></li>
+    <li><a href="#sources">Shared Swift sources</a></li>
+    <li><a href="#alarm">The alarm architecture</a></li>
+  </ol>
+  <div class="eyebrow">Building</div>
+  <ol>
+    <li><a href="#macos">macOS build</a></li>
+    <li><a href="#xcodeproj">The hand-written Xcode project</a></li>
+    <li><a href="#assets">Generated assets</a></li>
+    <li><a href="#devloop">Dev loop: simulator and device</a></li>
+  </ol>
+  <div class="eyebrow">Shipping</div>
+  <ol>
+    <li><a href="#credentials">Credentials</a></li>
+    <li><a href="#signing">Signing and provisioning</a></li>
+    <li><a href="#release">Release pipeline</a></li>
+    <li><a href="#listing">The App Store listing</a></li>
+    <li><a href="#newversion">Shipping a new version</a></li>
+  </ol>
+  <div class="eyebrow">For the next app</div>
+  <ol>
+    <li><a href="#gotchas">Gotchas learned the hard way</a></li>
+    <li><a href="#imitate">Imitation checklist</a></li>
+    <li><a href="#conventions">Working conventions</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="overview">
+  <h2>What it is</h2>
+  <p class="lede">A visual countdown for children: turn a dial, a red disk shrinks as the minutes run out, and it rings at zero. One set of SwiftUI sources produces a macOS app and an iPhone app; the iPhone app is on the App Store, released and updated entirely through scripts.</p>
+  <p>The repository holds three deliverables that share one design and one colour palette:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Deliverable</th><th>Where</th><th>How it is built</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Browser prototype</td><td><code>index.html</code></td><td>Single static file, Google Fonts, no build</td><td><span class="pill">reference only</span></td></tr>
+      <tr><td>macOS app</td><td><code>swift/</code></td><td><code>swiftc</code> into a hand-rolled <code>.app</code> bundle, ad-hoc signed</td><td><span class="pill">local use</span></td></tr>
+      <tr><td>iPhone app + Live Activity widget</td><td><code>ios/</code></td><td>Hand-written <code>.xcodeproj</code>, <code>xcodebuild</code> archive, <code>altool</code> upload, App Store Connect API for everything else</td><td><span class="pill live">1.1 live</span> <span class="pill review">1.2 in review</span></td></tr>
+    </tbody>
+  </table></div>
+  <p>The browser version came first and fixed the look. The Swift port followed, first as a Mac app because that needs no Xcode project, then as an iPhone app once the layout was proven. Everything Apple-facing (bundle ids, certificate, profiles, metadata, screenshots, age rating, build attachment, review submission) is done with two dependency-free Node scripts that talk to the App Store Connect API directly. Only three things ever needed the web UI, and they are listed under <a href="#listing">The App Store listing</a>.</p>
+  <dl class="kv">
+    <dt>Bundle id</dt><dd><code>com.bersling.redwedgetimer</code>, widget <code>com.bersling.redwedgetimer.alarm</code></dd>
+    <dt>Apple team</dt><dd><code>MTV8K47N4D</code> (paid Apple Developer Program, personal account)</dd>
+    <dt>App Store record</dt><dd>Apple ID <code>6811064404</code>, SKU <code>redwedgetimer</code>, free worldwide, base territory CHE, release type AFTER_APPROVAL</dd>
+    <dt>Deployment targets</dt><dd>iOS 17.0 for the app, iOS 26.0 for the widget extension, macOS 14.0 for the Mac app</dd>
+    <dt>Dependencies</dt><dd>None. No Swift packages, no npm packages, no CocoaPods. Node's built-in <code>crypto</code> signs the API JWT.</dd>
+  </dl>
+</section>
+
+<section id="layout">
+  <h2>Repository layout</h2>
+  <p>Everything tracked, with what each file is for. Build output lives under <code>ios/build/</code> and <code>swift/*.app</code>, both gitignored.</p>
+<pre class="tree"><code><span class="d">red-wedge-timer/</span>
+├── index.html                 <span class="c"># the original browser prototype; the design reference</span>
+├── IOS-PORT.md                <span class="c"># running journal: decisions, what shipped when, what Apple complained about</span>
+├── PRIVACY.md                 <span class="c"># privacy policy; its GitHub URL is what the listing points at</span>
+├── .env                       <span class="c"># App Store Connect credentials (gitignored, see Credentials)</span>
+├── .gitignore                 <span class="c"># swift/*.app, *.dSYM, .DS_Store, .env</span>
+├── docs/setup.html            <span class="c"># this document</span>
+│
+├── <span class="d">swift/</span>                     <span class="c"># the shared SwiftUI code and the Mac build</span>
+│   ├── README.md              <span class="c"># user-facing readme for the Mac app</span>
+│   ├── build.sh               <span class="c"># swiftc -> "Red Wedge Timer.app"; writes Info.plist inline</span>
+│   └── <span class="d">Sources/</span>
+│       ├── App_macOS.swift    <span class="c"># @main for macOS, inside #if os(macOS)</span>
+│       ├── App_iOS.swift      <span class="c"># @main for iOS, inside #if os(iOS)</span>
+│       ├── TimerScreen.swift  <span class="c"># the whole screen: header, dial, readout, presets, controls</span>
+│       ├── DialView.swift     <span class="c"># Canvas drawing of the dial + drag-to-set gesture</span>
+│       ├── TimerModel.swift   <span class="c"># countdown state machine, persistence, alarm scheduling</span>
+│       ├── Beeper.swift       <span class="c"># AlarmSound enum + AVAudioEngine synthesis of all six sounds</span>
+│       ├── SystemAlarm.swift  <span class="c"># AlarmKit wrapper (iOS 26+), inside #if os(iOS)</span>
+│       └── Palette.swift      <span class="c"># light/dark colours, also used by the widget</span>
+│
+└── <span class="d">ios/</span>                       <span class="c"># everything that only the iPhone app needs</span>
+    ├── RedWedgeTimer.xcodeproj/
+    │   ├── project.pbxproj    <span class="c"># hand-written, two targets, references ../swift/Sources</span>
+    │   └── xcshareddata/xcschemes/RedWedgeTimer.xcscheme   <span class="c"># shared scheme so xcodebuild finds it</span>
+    ├── Info.plist             <span class="c"># app plist; GENERATE_INFOPLIST_FILE is NO</span>
+    ├── ExportOptions.plist    <span class="c"># app-store-connect export, manual signing, profile names</span>
+    ├── Assets.xcassets/       <span class="c"># one 1024px icon (iOS needs nothing else since Xcode 14)</span>
+    ├── Sounds/*.caf           <span class="c"># six pre-rendered alarm sounds, committed</span>
+    ├── <span class="d">AlarmWidget/</span>           <span class="c"># the Live Activity extension target</span>
+    │   ├── AlarmWidget.swift  <span class="c"># lock screen + Dynamic Island views</span>
+    │   ├── AlarmShared.swift  <span class="c"># AlarmMetadata type compiled into app AND widget</span>
+    │   └── Info.plist
+    ├── <span class="d">store/screenshots/</span>     <span class="c"># 6.9-light.png, 6.9-dark.png for the listing</span>
+    │
+    ├── make-icon.swift        <span class="c"># renders the icon PNG with CoreGraphics</span>
+    ├── make-sounds.swift      <span class="c"># renders Sounds/*.caf from Beeper.swift</span>
+    │
+    ├── asc-provision.mjs      <span class="c"># bundle ids, distribution certificate, profiles</span>
+    ├── asc-store.mjs          <span class="c"># listing metadata, screenshots, age rating, build, submit</span>
+    ├── install-signing.sh     <span class="c"># one-time, by hand: key+cert into the keychain, profile into ~/Library</span>
+    ├── release.sh             <span class="c"># archive -> export -> altool upload</span>
+    ├── dev.sh                 <span class="c"># debug build straight onto the paired iPhone</span>
+    ├── .gitignore             <span class="c"># build/</span>
+    └── <span class="d">build/</span>                 <span class="c"># gitignored: archive, export, .cer, .mobileprovision</span>
+</code></pre>
+</section>
+
+<section id="toolchain">
+  <h2>Toolchain and principles</h2>
+  <p>The machine that built and shipped this had:</p>
+  <ul>
+    <li><strong>Xcode 26.6</strong> with command line tools (gives <code>swiftc</code>, <code>xcodebuild</code>, <code>xcrun altool</code>, <code>xcrun devicectl</code>, <code>xcrun simctl</code>). The AlarmKit code needs the iOS 26 SDK.</li>
+    <li><strong>Node 24</strong>. The scripts use <code>process.loadEnvFile()</code> (Node 20.12+) and built-in <code>fetch</code>. No <code>package.json</code> exists and none should be added.</li>
+    <li><strong>macOS system LibreSSL</strong> at <code>/usr/bin/openssl</code>. Homebrew's OpenSSL 3 writes a PKCS#12 the macOS keychain rejects; see <a href="#signing">Signing</a>.</li>
+    <li>A <strong>paid Apple Developer Program</strong> membership and an <strong>App Store Connect API key</strong> with the App Manager role (Users and Access, Integrations).</li>
+  </ul>
+  <h3>Principles the setup follows</h3>
+  <ul>
+    <li><strong>No dependencies.</strong> Nothing to install on the host, nothing to update, nothing that can break between sessions. Sounds are synthesised, the icon is drawn by code, JWTs are signed with <code>node:crypto</code>.</li>
+    <li><strong>Everything from the terminal.</strong> Xcode the IDE was never opened. The project file was written by hand, the scheme is checked in, archive and export are <code>xcodebuild</code> calls, upload is <code>altool</code>, and the listing is API calls.</li>
+    <li><strong>Secrets stay out of git.</strong> One <code>.env</code> file, gitignored, loaded by every script; the environment wins over the file. Files are staged by name, never <code>git add -A</code>.</li>
+    <li><strong>The journal is the spec.</strong> <code>IOS-PORT.md</code> records each decision and each submission with its date and build number, so the next session knows where things stand without asking.</li>
+    <li><strong>Collect nothing.</strong> No networking code at all, which makes the privacy questionnaire and App Review notes trivial. <code>PRIVACY.md</code> says so and the listing links to it on GitHub.</li>
+  </ul>
+</section>
+
+<section id="sources">
+  <h2>Shared Swift sources</h2>
+  <p>One directory, <code>swift/Sources/</code>, compiles for both platforms. The Mac build passes all files to <code>swiftc</code>; the Xcode project references the same files by relative path (<code>../swift/Sources/X.swift</code>) so nothing is copied. Platform differences are handled three ways:</p>
+  <ul>
+    <li><strong>Two entry points, one per file.</strong> <code>App_macOS.swift</code> and <code>App_iOS.swift</code> each wrap a <code>@main struct … : App</code> in <code>#if os(macOS)</code> / <code>#if os(iOS)</code>. Both files are in both builds; the compiler drops the wrong one. The macOS one sets window size and resizability; the iOS one is a bare <code>WindowGroup { TimerScreen() }</code>.</li>
+    <li><strong>Whole files gated.</strong> <code>SystemAlarm.swift</code> is entirely inside <code>#if os(iOS)</code> because AlarmKit does not exist on macOS.</li>
+    <li><strong>Small inline gates.</strong> <code>Beeper</code> configures <code>AVAudioSession</code> only on iOS and uses a haptic instead of a Dock bounce; <code>DialView</code> drops its <code>NSCursor</code> hover block; <code>TimerScreen</code> uses bigger hit padding on iOS, hides the wordmark text, and owns the iOS lifecycle wiring.</li>
+  </ul>
+  <div class="tablewrap"><table>
+    <thead><tr><th>File</th><th>Lines</th><th>Responsibility</th></tr></thead>
+    <tbody>
+      <tr><td><code>TimerScreen.swift</code></td><td class="num">292</td><td class="wrap">The one screen. Holds the <code>@StateObject TimerModel</code>, reads <code>scenePhase</code> and forwards <code>.active</code> / <code>.background</code> to the model, calls <code>restore()</code> on appear, and sets <code>isIdleTimerDisabled</code> while running or ringing. Keyboard shortcuts: Space toggles, Esc resets.</td></tr>
+      <tr><td><code>DialView.swift</code></td><td class="num">130</td><td class="wrap">A <code>Canvas</code> draws bezel, numerals outside the disk, and the red wedge; a <code>DragGesture(minimumDistance: 0)</code> converts touch angle to minutes.</td></tr>
+      <tr><td><code>TimerModel.swift</code></td><td class="num">391</td><td class="wrap"><code>@MainActor ObservableObject</code>. Minutes, remaining, running, done, alerting, alarm length, sound. A 30 Hz <code>Timer</code> ticks while in front; the end date in <code>UserDefaults</code> is the source of truth across suspension. Owns all alarm scheduling logic (see next section).</td></tr>
+      <tr><td><code>Beeper.swift</code></td><td class="num">235</td><td class="wrap"><code>AlarmSound</code> enum (six cases, each a list of <code>Note</code>s with partials and decay) and <code>Beeper</code>, which renders notes to PCM buffers, caches them per sample rate, and holds the audio engine only while sound plays so other apps keep their sample rate. <code>Beeper.render</code> is static so the sound-file generator can reuse it.</td></tr>
+      <tr><td><code>SystemAlarm.swift</code></td><td class="num">79</td><td class="wrap">Thin <code>@available(iOS 26.0, *)</code> wrapper over <code>AlarmManager</code>: authorize, schedule a <code>.timer</code> configuration with a named <code>.caf</code> sound, check pending, cancel, and an <code>alarmUpdates</code> watcher.</td></tr>
+      <tr><td><code>Palette.swift</code></td><td class="num">40</td><td class="wrap">Nine colours in light and dark. The widget compiles this file too, so the Live Activity matches the app.</td></tr>
+      <tr><td><code>App_*.swift</code></td><td class="num">12–15</td><td class="wrap">Entry points, as above.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout ok"><span class="tag">Pattern worth copying</span><p>Keep the model free of any view code and keep every <code>#if os()</code> block small and local. The Mac build is then a fast compile check for the shared code (seconds, no simulator), and the iOS project is purely packaging.</p></div>
+</section>
+
+<section id="alarm">
+  <h2>The alarm architecture</h2>
+  <p>The one hard requirement was that the timer rings on a locked, silenced phone. Three mechanisms exist in the code, layered by what iOS allows:</p>
+  <ol>
+    <li><strong>In-app beeper</strong> (all platforms). <code>AVAudioEngine</code> plays the synthesised pattern every 1.4 s while the app is in front. On iOS the session category is <code>.playback</code> and Info.plist declares <code>UIBackgroundModes: audio</code>, but that only keeps the app alive while sound is actually playing, so a silent countdown gets suspended within seconds.</li>
+    <li><strong>AlarmKit system alarm</strong> (iOS 26+). The real fix. <code>SystemAlarm.schedule</code> creates an <code>AlarmManager</code> timer with the system's full-screen alert, which rings through silent mode and Focus even if the app is killed. It also shows a Live Activity on the lock screen and in the Dynamic Island, rendered by the <code>AlarmWidget</code> extension.</li>
+    <li><strong>Local notification</strong> (iOS 17–25, or permission refused). <code>UNTimeIntervalNotificationTrigger</code> at the end date with the chosen <code>.caf</code> sound. One ding, muted by the silent switch, but better than nothing.</li>
+  </ol>
+  <h3>Lifecycle rules in <code>TimerModel</code></h3>
+  <ul>
+    <li>The system alarm exists <strong>only while the app is off screen</strong>. <code>enteredBackground()</code> schedules it inside a <code>beginBackgroundTask</code> grace window; <code>enteredForeground()</code> recomputes remaining from the end date and cancels it. In front, the app rings with its own beeper and shows no system badge.</li>
+    <li><code>start()</code> asks for AlarmKit permission (falling back to notification permission) because iOS cannot prompt from the background, where the alarm is scheduled.</li>
+    <li>Pause, Reset, changing length, sound, or beep setting cancel or reschedule. Beep "Off" schedules nothing.</li>
+    <li>A scheduled alarm id is kept in <code>UserDefaults</code>. On init the model subscribes to <code>alarmUpdates</code>, so a Stop pressed on the lock screen silences the in-app state too.</li>
+    <li>When the alarm rings while the app is in front, the app only pulses and cuts the system alarm off after the chosen length (1 s / 10 s / 1 min). Locked, it rings until someone presses Stop.</li>
+  </ul>
+  <h3>Why there are sound files</h3>
+  <p>AlarmKit and UserNotifications can only play files from the bundle. <code>ios/make-sounds.swift</code> compiles <code>Beeper.swift</code> alongside itself, calls the same <code>Beeper.render</code> for each <code>AlarmSound</code>, repeats it every 1.4 s for 29 s (notifications reject anything over 30 s), and writes IMA4 <code>.caf</code> files. The files are committed; rerun after changing a sound.</p>
+  <h3>The widget extension</h3>
+  <p><code>AlarmShared.swift</code> declares <code>struct RedWedgeAlarm: AlarmMetadata {}</code> and is compiled into both targets, because the Live Activity must decode exactly the <code>AlarmAttributes&lt;RedWedgeAlarm&gt;</code> the app scheduled with. The widget draws the disk as a <code>ProgressView(timerInterval:)</code>, which the system winds down on its own since a widget cannot redraw per frame. The app's Info.plist needs <code>NSSupportsLiveActivities</code> and <code>NSAlarmKitUsageDescription</code>.</p>
+</section>
+
+<section id="macos">
+  <h2>macOS build</h2>
+  <p>No Xcode project. <code>swift/build.sh</code> creates the <code>.app</code> directory structure, writes a static <code>Info.plist</code> with a heredoc, compiles all sources with one <code>swiftc</code> call, and ad-hoc signs the result.</p>
+<pre><code>swiftc -O -parse-as-library \
+  -target arm64-apple-macos14.0 \
+  -framework SwiftUI -framework AppKit -framework AVFoundation \
+  -o "$APP/Contents/MacOS/RedWedgeTimer" \
+  Sources/*.swift
+codesign --force --sign - "$APP"</code></pre>
+  <p><code>-parse-as-library</code> is required because the entry point is a <code>@main</code> type rather than top-level code. Run with <code>./swift/build.sh &amp;&amp; open "swift/Red Wedge Timer.app"</code>. This is also the fastest compile check for shared code changes.</p>
+</section>
+
+<section id="xcodeproj">
+  <h2>The hand-written Xcode project</h2>
+  <p><code>ios/RedWedgeTimer.xcodeproj/project.pbxproj</code> was typed out, not generated. It is about 380 lines and readable. Object ids are fake 24-hex-digit values in families, which makes the file greppable and makes adding a file a matter of three lines:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Prefix</th><th>Section</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>A1…</code> / <code>A2…</code></td><td>PBXBuildFile</td><td>"this file is in this phase" for app target (A1) and widget target (A2)</td></tr>
+      <tr><td><code>B1…</code></td><td>PBXFileReference</td><td>the files on disk; sources point at <code>../swift/Sources/</code></td></tr>
+      <tr><td><code>C1…</code></td><td>PBXFileReference</td><td>products: the <code>.app</code> and the <code>.appex</code></td></tr>
+      <tr><td><code>D…</code></td><td>Frameworks / CopyFiles phases</td><td>empty frameworks phase; "Embed Foundation Extensions" with <code>dstSubfolderSpec = 13</code></td></tr>
+      <tr><td><code>E1…</code></td><td>PBXGroup</td><td>the folder tree Xcode would show</td></tr>
+      <tr><td><code>F1…</code></td><td>PBXNativeTarget</td><td>F…01 app, F…02 widget</td></tr>
+      <tr><td><code>G1…</code></td><td>PBXProject</td><td>the root object</td></tr>
+      <tr><td><code>H / I</code></td><td>Resources / Sources phases</td><td>per target</td></tr>
+      <tr><td><code>J / K / L</code></td><td>XCBuildConfiguration / lists</td><td>J project-level, K1 app target, K2 widget target, L the lists</td></tr>
+      <tr><td><code>M / N</code></td><td>ContainerItemProxy / TargetDependency</td><td>app depends on widget so the appex is built first</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Build settings that matter</h3>
+  <ul>
+    <li><code>GENERATE_INFOPLIST_FILE = NO</code> and <code>INFOPLIST_FILE = Info.plist</code>. The plist is explicit, with <code>$(MARKETING_VERSION)</code> and <code>$(CURRENT_PROJECT_VERSION)</code> substituted from the target settings.</li>
+    <li><code>MARKETING_VERSION</code> and <code>CURRENT_PROJECT_VERSION</code> appear in <strong>four</strong> places (Debug and Release for both targets) and must agree, or App Store Connect rejects the upload for a version mismatch between app and extension.</li>
+    <li><strong>Debug</strong>: <code>CODE_SIGN_STYLE = Automatic</code>, so <code>dev.sh</code> can build for a device with <code>-allowProvisioningUpdates</code>.</li>
+    <li><strong>Release</strong>: <code>CODE_SIGN_STYLE = Manual</code>, <code>CODE_SIGN_IDENTITY = "Apple Distribution"</code>, <code>DEVELOPMENT_TEAM</code>, and <code>PROVISIONING_PROFILE_SPECIFIER</code> set to the profile <em>name</em>. The same names appear in <code>ExportOptions.plist</code>; all three must match what <code>asc-provision.mjs</code> created.</li>
+    <li>Widget target: <code>IPHONEOS_DEPLOYMENT_TARGET = 26.0</code>, <code>SKIP_INSTALL = YES</code>, extra runpath <code>@executable_path/../../Frameworks</code>, product type <code>com.apple.product-type.app-extension</code>, plist <code>CFBundlePackageType = XPC!</code> with <code>NSExtensionPointIdentifier = com.apple.widgetkit-extension</code>.</li>
+    <li><code>TARGETED_DEVICE_FAMILY = 1</code> (iPhone only) on both, which also means only 6.9" screenshots are required.</li>
+    <li>The scheme is under <code>xcshareddata</code>, so <code>xcodebuild -scheme RedWedgeTimer</code> works on a fresh clone.</li>
+  </ul>
+  <p>The Info.plist for the app also carries: <code>ITSAppUsesNonExemptEncryption = NO</code> (skips the export-compliance question on every build), <code>UILaunchScreen</code> as an empty dict (required, otherwise the app is letterboxed), portrait only, <code>UIBackgroundModes: audio</code>, <code>NSSupportsLiveActivities</code>, <code>NSAlarmKitUsageDescription</code>.</p>
+  <div class="callout"><span class="tag">Fallback</span><p>If writing a pbxproj by hand feels risky for a new app, the documented alternative is to create the project once in Xcode's GUI, commit it, and never open Xcode again. The <code>xcodegen</code> tool is another option, but it would be a dependency.</p></div>
+</section>
+
+<section id="assets">
+  <h2>Generated assets</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Asset</th><th>Generator</th><th>Command (from <code>ios/</code>)</th></tr></thead>
+    <tbody>
+      <tr><td>App icon, 1024 px</td><td><code>make-icon.swift</code> (CoreGraphics + ImageIO)</td><td><code>swift make-icon.swift</code></td></tr>
+      <tr><td>Six <code>.caf</code> alarm sounds</td><td><code>make-sounds.swift</code> + <code>Beeper.swift</code></td><td class="wrap"><code>swiftc -parse-as-library -o build/make-sounds ../swift/Sources/Beeper.swift make-sounds.swift &amp;&amp; build/make-sounds</code></td></tr>
+      <tr><td>Screenshots 6.9"</td><td>Simulator screenshots, light and dark</td><td class="wrap"><code>xcrun simctl io booted screenshot store/screenshots/6.9-light.png</code> on an iPhone 16 Pro Max class simulator (1320×2868)</td></tr>
+    </tbody>
+  </table></div>
+  <p>The asset catalog has one entry: a universal 1024×1024 iOS icon. Since Xcode 14, iOS derives all other sizes from it. Both generated outputs are committed so a clone builds without running them.</p>
+</section>
+
+<section id="devloop">
+  <h2>Dev loop: simulator and device</h2>
+  <h3>Simulator, no signing</h3>
+<pre><code>cd ios &amp;&amp; xcodebuild -project RedWedgeTimer.xcodeproj -scheme RedWedgeTimer \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO -derivedDataPath build/sim build
+
+xcrun simctl boot "iPhone 17 Pro"            <span class="c"># or whatever `xcrun simctl list devices` shows</span>
+xcrun simctl install booted "build/sim/Build/Products/Debug-iphonesimulator/Red Wedge Timer.app"
+xcrun simctl launch booted com.bersling.redwedgetimer</code></pre>
+  <h3>Real iPhone, bypassing the App Store</h3>
+  <p><code>ios/dev.sh</code> builds the Debug configuration for the paired device (automatic signing, <code>-allowProvisioningUpdates</code>) and installs with <code>xcrun devicectl device install app</code>, then launches by bundle id. The device UDID is baked in as a default and overridable with <code>DEVICE=…</code>. It first checks <code>devicectl list devices</code> for state <code>connected</code> and refuses otherwise, since a stale pairing row looks identical to a reachable phone.</p>
+  <div class="callout warn"><span class="tag">Caveat</span><p>The 1.1 and 1.2 AlarmKit path was built and launched only in the simulator before submission. The device install script exists but the install step had not been exercised at the time of writing. Treat a locked, silenced one-minute timer as the first thing to test on a real phone.</p></div>
+</section>
+
+<section id="credentials">
+  <h2>Credentials</h2>
+  <p>One file, <code>.env</code> at the repo root, gitignored. Three keys, all for the App Store Connect API:</p>
+<pre><code>APPSTORECONNECT_KEY_ID=XXXXXXXXXX          <span class="c"># key id from Users and Access &gt; Integrations</span>
+APPSTORECONNECT_ISSUER_ID=xxxxxxxx-…        <span class="c"># issuer UUID shown above the key list</span>
+APPSTORECONNECT_P8=/absolute/path/AuthKey_XXXXXXXXXX.p8   <span class="c"># a PATH to the key file, not its contents</span></code></pre>
+  <p>Every Node script starts with <code>try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch {}</code> so the environment wins over the file; the shell scripts do <code>set -a; . ../.env; set +a</code>. The JWT is built by hand: header <code>{alg: ES256, kid, typ: JWT}</code>, payload <code>{iss, iat, exp: iat+900, aud: 'appstoreconnect-v1'}</code>, signed with <code>createSign('SHA256')</code> and <code>dsaEncoding: 'ieee-p1363'</code>. That last option matters; the default DER signature is rejected by Apple.</p>
+  <p><code>altool</code> ignores the path variable and looks for <code>~/.appstoreconnect/private_keys/AuthKey_&lt;KEY_ID&gt;.p8</code>. <code>release.sh</code> copies the key there on first run.</p>
+  <div class="callout"><span class="tag">Git hygiene</span><p>Because <code>.env</code> sits in the working tree, commits in this repo stage files by name. A blanket <code>git add -A</code> was flagged once as a credential leak risk and is now a rule.</p></div>
+</section>
+
+<section id="signing">
+  <h2>Signing and provisioning</h2>
+  <p>Done once per app, almost entirely through the API with <code>ios/asc-provision.mjs</code>. The one step that touches the keychain is a script the human runs.</p>
+  <figure>
+    <svg viewBox="0 0 760 170" role="img" aria-label="Flow from CSR to a signed archive">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
+      <g font-family="Azeret Mono, Menlo, monospace" font-size="12" fill="var(--ink)">
+        <rect x="10" y="20" width="160" height="56" rx="8" fill="var(--face)" stroke="var(--hairline)"/>
+        <text x="90" y="43" text-anchor="middle">openssl</text><text x="90" y="61" text-anchor="middle" fill="var(--muted)">key + CSR</text>
+        <rect x="210" y="20" width="160" height="56" rx="8" fill="var(--face)" stroke="var(--hairline)"/>
+        <text x="290" y="43" text-anchor="middle">asc-provision.mjs</text><text x="290" y="61" text-anchor="middle" fill="var(--muted)">bundle-id · certificate · profile</text>
+        <rect x="410" y="20" width="160" height="56" rx="8" fill="var(--wedge-soft)" stroke="var(--wedge)"/>
+        <text x="490" y="43" text-anchor="middle">install-signing.sh</text><text x="490" y="61" text-anchor="middle" fill="var(--muted)">by hand: keychain</text>
+        <rect x="610" y="20" width="140" height="56" rx="8" fill="var(--face)" stroke="var(--hairline)"/>
+        <text x="680" y="43" text-anchor="middle">release.sh</text><text x="680" y="61" text-anchor="middle" fill="var(--muted)">Apple Distribution</text>
+        <line x1="170" y1="48" x2="208" y2="48" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="370" y1="48" x2="408" y2="48" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="570" y1="48" x2="608" y2="48" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arr)"/>
+        <text x="90" y="110" text-anchor="middle" fill="var(--muted)">distribution.key (keep!)</text>
+        <text x="290" y="110" text-anchor="middle" fill="var(--muted)">build/distribution.cer</text>
+        <text x="290" y="128" text-anchor="middle" fill="var(--muted)">build/*.mobileprovision</text>
+        <text x="490" y="110" text-anchor="middle" fill="var(--muted)">~/Documents/signing/*.p12</text>
+        <text x="490" y="128" text-anchor="middle" fill="var(--muted)">~/Library/MobileDevice/Provisioning Profiles/</text>
+        <text x="680" y="110" text-anchor="middle" fill="var(--muted)">build/export/*.ipa</text>
+      </g>
+    </svg>
+    <figcaption>The red box is the only step the agent cannot run: it writes to the login keychain.</figcaption>
+  </figure>
+  <ol class="steps">
+    <li><strong>Make a private key and a certificate signing request</strong> (the CSR is what Apple signs; the key never leaves the Mac):
+<pre><code>openssl genrsa -out distribution.key 2048
+openssl req -new -key distribution.key -out build/distribution.csr \
+  -subj "/emailAddress=you@example.com/CN=Your Name/C=CH"</code></pre>
+      Keep <code>distribution.key</code> somewhere permanent. The one for this app was generated in a session scratchpad and <code>install-signing.sh</code> copies it to <code>~/Documents/signing/</code>; a lost key means revoking the certificate and starting over.</li>
+    <li><strong>Register bundle ids</strong>: <code>node asc-provision.mjs bundle-id</code> and <code>node asc-provision.mjs bundle-id --extension</code>. Idempotent; it finds an existing id by identifier first.</li>
+    <li><strong>Create the distribution certificate</strong>: <code>node asc-provision.mjs certificate --csr build/distribution.csr</code>. Writes <code>build/distribution.cer</code> (DER). One certificate serves every app on the team.</li>
+    <li><strong>Create App Store profiles</strong>: <code>node asc-provision.mjs profile</code> and <code>… profile --extension</code>. Each is <code>IOS_APP_STORE</code> type, bound to the bundle id and every distribution certificate on the account, and lands in <code>build/</code>. The profile <em>names</em> ("Red Wedge Timer App Store", "Red Wedge Timer Alarm App Store") are what the Xcode project and <code>ExportOptions.plist</code> reference.</li>
+    <li><strong>Run <code>ios/install-signing.sh</code> yourself.</strong> It converts the DER certificate to PEM, pairs it with the key into a <code>.p12</code> using <code>/usr/bin/openssl</code> with <code>-certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1</code> (Homebrew OpenSSL 3 defaults produce "MAC verification failed" on import), imports into the login keychain with <code>-T /usr/bin/codesign</code>, and copies the profile to <code>~/Library/MobileDevice/Provisioning Profiles/&lt;UUID&gt;.mobileprovision</code>. It ends by listing <code>security find-identity -v -p codesigning</code> and fails loudly if "Apple Distribution" is missing.</li>
+    <li><strong>If codesign still cannot find the identity</strong>, macOS is withholding the fresh key from command line tools: <code>security set-key-partition-list -S apple-tool:,apple: -k &lt;login password&gt; ~/Library/Keychains/login.keychain-db</code>.</li>
+  </ol>
+  <p><code>node asc-provision.mjs status</code> prints the bundle id, every certificate with expiry, and every profile with its state. Run it first in a new session.</p>
+</section>
+
+<section id="release">
+  <h2>Release pipeline</h2>
+  <p><code>ios/release.sh</code> does the binary side in three <code>xcodebuild</code>/<code>altool</code> calls:</p>
+<pre><code>xcodebuild -project RedWedgeTimer.xcodeproj -scheme RedWedgeTimer \
+  -configuration Release -sdk iphoneos -archivePath build/RedWedgeTimer.xcarchive archive
+
+xcodebuild -exportArchive -archivePath build/RedWedgeTimer.xcarchive \
+  -exportOptionsPlist ExportOptions.plist -exportPath build/export
+
+xcrun altool --upload-app -f "build/export/Red Wedge Timer.ipa" -t ios \
+  --apiKey "$APPSTORECONNECT_KEY_ID" --apiIssuer "$APPSTORECONNECT_ISSUER_ID"</code></pre>
+  <p><code>--no-upload</code> stops after the <code>.ipa</code>. <code>ExportOptions.plist</code> says <code>method = app-store-connect</code>, <code>signingStyle = manual</code>, the team id, <code>uploadSymbols = true</code>, and a <code>provisioningProfiles</code> dict mapping each bundle id to its profile name. After upload, processing takes a few minutes before <code>asc-store.mjs build</code> can see a <code>VALID</code> build.</p>
+  <div class="callout warn"><span class="tag">Precondition</span><p>The app record must exist in App Store Connect before the first upload, and the API cannot create one. Make it once in the web UI (name, primary language, bundle id, SKU), then copy the numeric Apple ID into <code>asc-store.mjs</code>.</p></div>
+</section>
+
+<section id="listing">
+  <h2>The App Store listing</h2>
+  <p><code>ios/asc-store.mjs</code> holds the listing as a constant (<code>LISTING</code>: description, keywords, promotional text, support URL, release notes), the review contact (<code>REVIEW_CONTACT</code>), the app id, the version string, and the locale. Each subcommand is idempotent and finds-or-creates its object, so running one twice is safe. Order for a first version:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Command</th><th>API objects</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>status</code></td><td>apps, appStoreVersions, builds, appInfos</td><td>Read-only overview. The record also carries a macOS version row; the script filters on <code>platform === 'IOS'</code>.</td></tr>
+      <tr><td><code>metadata</code></td><td>appStoreVersions, appStoreVersionLocalizations</td><td>Creates the version if missing. Apple refuses <code>whatsNew</code> on a 1.0, so the script omits it there.</td></tr>
+      <tr><td><code>screenshots</code></td><td>appScreenshotSets (<code>APP_IPHONE_67</code>), appScreenshots</td><td>Reserve, PUT each upload operation chunk with its given headers, then PATCH <code>uploaded: true</code> with an MD5 checksum. Skips if the set already has images.</td></tr>
+      <tr><td><code>age-rating</code></td><td>ageRatingDeclarations</td><td>Every category <code>NONE</code> / <code>false</code>. The attribute list changes between API versions; the current set is in the script.</td></tr>
+      <tr><td><code>categories</code></td><td>appInfos</td><td>Primary Utilities, secondary Education.</td></tr>
+      <tr><td><code>privacy-url</code></td><td>appInfoLocalizations</td><td>Points at <code>PRIVACY.md</code> on GitHub.</td></tr>
+      <tr><td><code>review-detail</code></td><td>appStoreReviewDetails</td><td>Contact name, phone, email, notes for the reviewer, no demo account.</td></tr>
+      <tr><td><code>build</code></td><td>builds, appStoreVersions/relationships/build</td><td>Sorted <code>-uploadedDate</code> so it picks the newest <code>VALID</code> build rather than last version's.</td></tr>
+      <tr><td><code>submit</code></td><td>reviewSubmissions, reviewSubmissionItems</td><td>Creates a submission (or reuses the one open submission), adds the version, PATCHes <code>submitted: true</code>.</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Only possible in the web UI</h3>
+  <ul>
+    <li><strong>App Privacy</strong> questionnaire (answered "data not collected", published once; persists across versions).</li>
+    <li><strong>Copyright</strong> on the version and the <strong>price tier</strong> (free). Both block submission, and the API only reports "not in valid state". The version page's "Add for Review" button lists the real blockers; use it as the diagnostic.</li>
+    <li><strong>Export compliance</strong> used to be a third one, now avoided by <code>ITSAppUsesNonExemptEncryption = NO</code> in Info.plist.</li>
+  </ul>
+</section>
+
+<section id="newversion">
+  <h2>Shipping a new version</h2>
+  <ol class="steps">
+    <li><strong>Bump versions in the pbxproj</strong>: <code>MARKETING_VERSION</code> (e.g. 1.3) if the user-visible version changes, and <code>CURRENT_PROJECT_VERSION</code> always, in all four configurations. A rejected or pulled build keeps the marketing version and bumps only the build number.</li>
+    <li><strong>Update <code>asc-store.mjs</code></strong>: <code>VERSION</code> and <code>LISTING.whatsNew</code>.</li>
+    <li><strong>Build and upload</strong>: <code>cd ios &amp;&amp; ./release.sh</code>. Wait a few minutes.</li>
+    <li><strong>Create the version and notes</strong>: <code>node asc-store.mjs metadata</code>. Screenshots, age rating, categories and privacy URL carry over; rerun only if they changed.</li>
+    <li><strong>Attach and submit</strong>: <code>node asc-store.mjs build</code>, then <code>node asc-store.mjs submit</code>. With release type AFTER_APPROVAL, approval publishes it with no further action.</li>
+    <li><strong>Record it</strong> in <code>IOS-PORT.md</code> (date, build, what changed, what was not tested) and commit with the pbxproj and script changes together, e.g. "1.2 build 5: the system alarm only while the app is off screen".</li>
+  </ol>
+</section>
+
+<section id="gotchas">
+  <h2>Gotchas learned the hard way</h2>
+  <ul>
+    <li><strong>Background audio does not keep a silent app alive.</strong> iOS suspends it within seconds, and a repeating <code>Timer</code> dies with it. Only AlarmKit rings reliably on a locked phone. Critical notification sounds need an entitlement Apple does not hand out.</li>
+    <li><strong>AlarmKit cannot prompt from the background.</strong> Request authorization on Start, while the app is in front, even though scheduling happens on background entry.</li>
+    <li><strong>Scheduling in <code>enteredBackground</code> needs a background task</strong>, otherwise the async schedule call can be suspended before it lands.</li>
+    <li><strong>Sound files over 30 s</strong> fall back to the default notification sound; the generator renders 29 s.</li>
+    <li><strong>App and extension must share version numbers</strong>, or the upload is rejected.</li>
+    <li><strong>JWT signature must be <code>ieee-p1363</code></strong>, not DER, or every API call is 401.</li>
+    <li><strong>Homebrew OpenSSL 3's PKCS#12</strong> fails keychain import; use <code>/usr/bin/openssl</code> with SHA1/3DES options.</li>
+    <li><strong>"Not in valid state"</strong> from <code>reviewSubmissions</code> means a web-UI-only field is empty. Open the version page and press "Add for Review" to see which.</li>
+    <li><strong>The builds list is unsorted by default</strong>; without <code>sort=-uploadedDate</code> the attach step picks last version's build.</li>
+    <li><strong>A device row in <code>devicectl list devices</code> is not a reachable device.</strong> Check the state column, or the <code>tunnelState</code> in <code>device info details</code>.</li>
+    <li><strong>The keychain is off limits to the agent.</strong> Anything touching <code>security import</code> or <code>~/Library/MobileDevice</code> is a script the human runs once.</li>
+    <li><strong>Private key in a scratchpad</strong> is a trap: scratchpads are deleted. Move the key to a permanent folder before the session ends.</li>
+  </ul>
+</section>
+
+<section id="imitate">
+  <h2>Imitation checklist</h2>
+  <p>To set up a new iPhone app the same way, in order. Names in <code>&lt;angle brackets&gt;</code> are what to change from this repo.</p>
+  <ol class="steps">
+    <li><strong>Prototype in one HTML file</strong> to settle the look and the colour tokens. Port those tokens to a <code>Palette.swift</code>.</li>
+    <li><strong>Write shared SwiftUI sources</strong> in <code>swift/Sources/</code> with two <code>@main</code> files behind <code>#if os()</code>. Copy <code>swift/build.sh</code>, change the app name, bundle id and executable name, and use it as the compile check.</li>
+    <li><strong>Copy <code>ios/</code></strong> and rename: in <code>project.pbxproj</code> the product names, <code>PRODUCT_BUNDLE_IDENTIFIER</code>s, <code>PROVISIONING_PROFILE_SPECIFIER</code>s, and the source file references; the scheme's <code>BuildableName</code>; both <code>Info.plist</code> display names; <code>ExportOptions.plist</code> bundle ids and profile names. Delete the widget target if the app has no Live Activity (remove F…02, K2…, L…03, the embed phase, the dependency, and the A2 build files).</li>
+    <li><strong>Write <code>.env</code></strong> with the three App Store Connect keys and make sure <code>.gitignore</code> lists it.</li>
+    <li><strong>Edit the constants</strong> at the top of <code>asc-provision.mjs</code> (<code>BUNDLE_ID</code>, <code>APP_NAME</code>, <code>PROFILE_NAME</code>, <code>PROFILE_FILE</code>) and run <code>status</code>, <code>bundle-id</code>, <code>profile</code>. Reuse the team's existing distribution certificate; only create one if <code>status</code> shows none.</li>
+    <li><strong>Have the human run <code>install-signing.sh</code></strong> after updating its <code>PROFILE_UUID</code> (read it from the new <code>.mobileprovision</code> with <code>security cms -D -i build/X.mobileprovision | plutil -extract UUID raw -</code>) and key path.</li>
+    <li><strong>Create the app record in the web UI</strong>, copy the Apple ID into <code>asc-store.mjs</code>, and rewrite <code>LISTING</code>, <code>REVIEW_CONTACT</code>, <code>PRIVACY_POLICY_URL</code>, categories, and <code>VERSION = '1.0'</code>.</li>
+    <li><strong>Generate assets</strong>: an icon script, screenshots from the simulator into <code>store/screenshots/</code>.</li>
+    <li><strong>Add <code>PRIVACY.md</code></strong> and push, so the privacy URL resolves before submission.</li>
+    <li><strong>Release</strong>: <code>./release.sh</code>, then <code>asc-store.mjs</code> <code>metadata</code>, <code>screenshots</code>, <code>age-rating</code>, <code>categories</code>, <code>privacy-url</code>, <code>review-detail</code>, <code>build</code>. In the web UI set copyright, price, and App Privacy. Then <code>submit</code>.</li>
+    <li><strong>Start a journal</strong> like <code>IOS-PORT.md</code> and record the submission date and build.</li>
+  </ol>
+</section>
+
+<section id="conventions">
+  <h2>Working conventions</h2>
+  <ul>
+    <li><strong>Commits</strong> are a single sentence in plain English describing the user-visible change, no type prefixes, e.g. "Keep the screen on while the disk shrinks, and ship it as 1.1 build 4". Release commits name the version and build. The agent commits and pushes finished work to <code>origin main</code> itself.</li>
+    <li><strong>Documentation lives in three places</strong>: <code>swift/README.md</code> for how the app behaves, <code>IOS-PORT.md</code> for decisions and release history, and this file for the setup. Script headers carry their own usage block and are authoritative for flags.</li>
+    <li><strong>Non-trivial changes go through a git worktree</strong> so the main checkout, which may be open in an editor, does not churn.</li>
+    <li><strong>No host installs.</strong> If a tool is ever needed beyond Xcode and Node, it runs in a container.</li>
+    <li><strong>Sibling repo</strong>: <code>~/IT-Projects/toddler-games/scripts/</code> has the older generation of these App Store Connect scripts (<code>asc.mjs</code>, <code>asc-metadata.mjs</code>, <code>asc-submit.mjs</code>) plus analytics and Google Play upload. This repo's scripts are the leaner descendants and the ones to copy forward.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+</body>
+</html>
